@@ -1,4 +1,7 @@
+"use client"
+
 import { useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import MemberMedia from '@/components/members/MemberMedia'
 import MemberStories from '@/components/members/MemberStories'
@@ -28,16 +31,22 @@ export default function MemberProfile({ member, media, stories, events, marriage
       {/* Header / Basic Info */}
       <div className="bg-primary p-8 text-white">
         <div className="flex flex-col md:flex-row items-center gap-8">
-          <div className="w-32 h-32 bg-blue-100 rounded-2xl flex items-center justify-center text-primary text-5xl font-bold border-4 border-white/20 shadow-inner overflow-hidden">
+          <div className="w-32 h-32 bg-blue-100 rounded-2xl flex items-center justify-center text-primary text-5xl font-bold border-4 border-white/20 shadow-inner overflow-hidden relative">
             {member.profile_photo_url ? (
-              <img src={member.profile_photo_url} alt={member.full_name} className="w-full h-full object-cover" />
+              <Image 
+                src={member.profile_photo_url} 
+                alt={member.full_name} 
+                fill 
+                className="object-cover"
+                sizes="128px"
+              />
             ) : (
               member.full_name?.charAt(0)
             )}
           </div>
           <div className="flex-1 text-center md:text-left">
             <h1 className="text-3xl font-extrabold">{member.full_name}</h1>
-            {member.nickname && <p className="text-blue-100 text-lg mt-1 italic">"{member.nickname}"</p>}
+            {member.nickname && <p className="text-blue-100 text-lg mt-1 italic">&quot;{member.nickname}&quot;</p>}
             <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4 text-sm">
               <span className="bg-white/10 px-3 py-1 rounded-full border border-white/20">
                 Born: {member.date_of_birth || 'Unknown'}

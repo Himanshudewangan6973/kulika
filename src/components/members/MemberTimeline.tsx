@@ -1,5 +1,7 @@
 'use client'
 
+import EmptyState from '@/components/ui/EmptyState'
+
 interface MemberTimelineProps {
   member: any
   events: any[]
@@ -50,11 +52,12 @@ export default function MemberTimeline({ member, events, marriages }: MemberTime
 
   if (timelineItems.length === 0) {
     return (
-      <div className="py-20 text-center text-gray-400 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 animate-in fade-in duration-500">
-        <p className="text-4xl mb-4">⏳</p>
-        <p className="text-lg font-medium text-gray-600">No timeline data available</p>
-        <p className="text-sm text-gray-400 mt-1">Help build this member's journey by adding life events.</p>
-      </div>
+      <EmptyState
+        icon="⏳"
+        title="No timeline data available"
+        description="Help build this member's journey by adding life events."
+        className="animate-in fade-in duration-500"
+      />
     )
   }
 
@@ -83,7 +86,7 @@ export default function MemberTimeline({ member, events, marriages }: MemberTime
             
             {item.description && (
               <p className="text-gray-500 text-sm leading-relaxed mb-4 italic">
-                "{item.description}"
+                &quot;{item.description}&quot;
               </p>
             )}
             

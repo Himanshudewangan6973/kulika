@@ -7,7 +7,7 @@ export default function Home() {
         <div>
           <h1 className="text-5xl font-extrabold text-primary mb-4">kulika</h1>
           <p className="text-2xl text-gray-600 max-w-3xl mx-auto">
-            Roots of Dewangan Heritage.
+            Roots of Heritage Heritage.
           </p>
           <p className="text-lg text-gray-500 mt-4 max-w-2xl mx-auto">
             An AI-powered sanctuary for preserving family history across generations.
@@ -49,7 +49,7 @@ export default function Home() {
                 <span className="text-3xl">🔍</span>
                 <div className="space-y-2 text-left">
                   <p className="text-gray-800 font-bold text-lg">Semantic Discovery</p>
-                  <p className="text-gray-500 text-sm">Ask anything: "Who moved to Raipur in 1960?"</p>
+                  <p className="text-gray-500 text-sm">Ask anything: &quot;Who moved to Raipur in 1960?&quot;</p>
                 </div>
               </div>
               <span className="text-primary font-bold transition-all group-hover:translate-x-2">Search Registry →</span>

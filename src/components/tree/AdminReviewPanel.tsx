@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react'
+"use client"
+
+import React, { useState, useEffect, useCallback } from 'react'
 import { X, Check, Edit2, AlertCircle, Trash2, Clock } from 'lucide-react'
 import { useTreeStore } from './store'
 import { createClient } from '@/lib/supabase/client'
@@ -7,17 +9,10 @@ const supabase = createClient()
 
 export default function AdminReviewPanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const showNotification = useTreeStore(state => state.showNotification)
-  const fetchPendingCount = useTreeStore(state => state.fetchPendingCount)
   const [pendingChanges, setPendingChanges] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   
-  useEffect(() => {
-    if (isOpen && supabase) {
-      fetchPendingChanges()
-    }
-  }, [isOpen])
-
-  const fetchPendingChanges = async () => {
+  const fetchPendingChanges = useCallback(async () => {
     if (!supabase) {
       setLoading(false)
       return
@@ -31,8 +26,13 @@ export default function AdminReviewPanel({ isOpen, onClose }: { isOpen: boolean,
     
     if (data) setPendingChanges(data)
     setLoading(false)
-    fetchPendingCount()
-  }
+  }, [])
+
+  useEffect(() => {
+    if (isOpen && supabase) {
+      fetchPendingChanges()
+    }
+  }, [isOpen, fetchPendingChanges])
 
   const handleApprove = async (change: any) => {
     try {

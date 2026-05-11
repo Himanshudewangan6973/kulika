@@ -18,7 +18,7 @@ export default function TimelinePage() {
 
       <div className="p-12 max-w-5xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-extrabold text-gray-900">The Roots of Dewangan</h2>
+          <h2 className="text-3xl font-extrabold text-gray-900">The Roots of Heritage</h2>
           <p className="mt-4 text-lg text-gray-500 max-w-2xl mx-auto">
             A chronological voyage through our collective history, marking every milestone, birth, and achievement that shaped our family today.
           </p>

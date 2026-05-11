@@ -1,8 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
 import SubmissionList from '@/components/admin/SubmissionList'
+import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
+import Alert from '@/components/ui/Alert'
 
 export default async function AdminInboxPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   let submissions: any[] = []
   let fetchError = null
 
@@ -26,6 +28,11 @@ export default async function AdminInboxPage() {
   return (
     <main className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
+        <div className="mb-8">
+          <Link href="/" className="text-primary hover:text-primary-dark font-medium flex items-center gap-2 transition-all hover:-translate-x-1">
+            <span className="text-xl">←</span> Back Home
+          </Link>
+        </div>
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Admin Submission Inbox</h1>
@@ -39,15 +46,13 @@ export default async function AdminInboxPage() {
         </div>
 
         {!supabase && (
-          <div className="p-4 mb-6 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm">
-            <strong>Configuration Required:</strong> Supabase credentials are missing. Please set up your environment variables.
-          </div>
+          <Alert type="warning" message="Configuration Required:">
+            <p className="text-sm">Supabase credentials are missing. Please set up your environment variables.</p>
+          </Alert>
         )}
 
         {fetchError && (
-          <div className="p-4 mb-6 bg-red-50 text-red-700 border border-red-200 rounded-lg">
-            Error loading submissions: {fetchError.message}
-          </div>
+          <Alert type="error" message={`Error loading submissions: ${fetchError.message}`} />
         )}
 
         <SubmissionList initialSubmissions={submissions} />

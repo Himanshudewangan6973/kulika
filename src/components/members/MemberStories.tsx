@@ -1,5 +1,7 @@
 'use client'
 
+import EmptyState from '@/components/ui/EmptyState'
+
 interface MemberStoriesProps {
   stories: any[]
 }
@@ -7,11 +9,12 @@ interface MemberStoriesProps {
 export default function MemberStories({ stories }: MemberStoriesProps) {
   if (!stories || stories.length === 0) {
     return (
-      <div className="py-20 text-center text-gray-400 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 animate-in fade-in duration-500">
-        <p className="text-4xl mb-4">📜</p>
-        <p className="text-lg font-medium text-gray-600">No stories recorded yet</p>
-        <p className="text-sm text-gray-400 mt-1">Preserve a memory of this member for future generations.</p>
-      </div>
+      <EmptyState
+        icon="📜"
+        title="No stories recorded yet"
+        description="Preserve a memory of this member for future generations."
+        className="animate-in fade-in duration-500"
+      />
     )
   }
 
@@ -35,7 +38,7 @@ export default function MemberStories({ stories }: MemberStoriesProps) {
           </h3>
           
           <p className="text-gray-600 leading-relaxed italic mb-8 line-clamp-4 flex-1">
-            "{story.story_text}"
+            &quot;{story.story_text}&quot;
           </p>
           
           <div className="flex items-center justify-between pt-6 border-t border-gray-50 mt-auto">

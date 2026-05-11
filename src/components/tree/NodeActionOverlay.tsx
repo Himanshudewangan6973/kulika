@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 import { useTreeStore } from './store'
 import { X, Save, Trash2, Camera, UserPlus } from 'lucide-react'
 
@@ -12,10 +13,11 @@ export default function NodeActionOverlay() {
   
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [formData, setFormData] = React.useState({
-    full_name: '',
+    firstName: '',
+    lastName: '',
     nickname: '',
-    date_of_birth: '',
-    date_of_death: '',
+    dateOfBirth: '',
+    dateOfDeath: '',
   })
   
   const node = React.useMemo(() => nodes.find(n => n.id === editingNodeId), [nodes, editingNodeId])
@@ -23,10 +25,11 @@ export default function NodeActionOverlay() {
   React.useEffect(() => {
     if (node) {
       setFormData({
-        full_name: node.data.full_name || '',
+        firstName: node.data.firstName || '',
+        lastName: node.data.lastName || '',
         nickname: node.data.nickname || '',
-        date_of_birth: node.data.date_of_birth || '',
-        date_of_death: node.data.date_of_death || '',
+        dateOfBirth: node.data.dateOfBirth || '',
+        dateOfDeath: node.data.dateOfDeath || '',
       })
     }
   }, [node])
@@ -67,9 +70,15 @@ export default function NodeActionOverlay() {
         <div className="p-4 space-y-4">
           <div className="flex justify-center">
             <div className="relative group cursor-pointer">
-              <div className="w-20 h-20 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
-                {node.data.profile_photo_url ? (
-                  <img src={node.data.profile_photo_url} className="w-full h-full rounded-full object-cover" alt="" />
+              <div className="w-20 h-20 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 overflow-hidden relative">
+                {node.data.avatarUrl ? (
+                  <Image 
+                    src={node.data.avatarUrl} 
+                    fill
+                    className="object-cover" 
+                    alt="" 
+                    sizes="80px"
+                  />
                 ) : (
                   <Camera size={24} />
                 )}
@@ -82,8 +91,12 @@ export default function NodeActionOverlay() {
 
           <div className="space-y-2 text-left">
             <div>
-              <label className="text-[10px] uppercase font-bold text-gray-400">Full Name</label>
-              <input id="edit-full_name" type="text" value={formData.full_name} onChange={handleChange} className="w-full border rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              <label className="text-[10px] uppercase font-bold text-gray-400">First Name</label>
+              <input id="edit-firstName" type="text" value={formData.firstName} onChange={handleChange} className="w-full border rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase font-bold text-gray-400">Last Name</label>
+              <input id="edit-lastName" type="text" value={formData.lastName} onChange={handleChange} className="w-full border rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div>
               <label className="text-[10px] uppercase font-bold text-gray-400">Nickname</label>
@@ -92,11 +105,11 @@ export default function NodeActionOverlay() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] uppercase font-bold text-gray-400">Born</label>
-                <input id="edit-date_of_birth" type="date" value={formData.date_of_birth} onChange={handleChange} className="w-full border rounded px-2 py-1.5 text-xs outline-none" />
+                <input id="edit-dateOfBirth" type="date" value={formData.dateOfBirth} onChange={handleChange} className="w-full border rounded px-2 py-1.5 text-xs outline-none" />
               </div>
               <div>
                 <label className="text-[10px] uppercase font-bold text-gray-400">Died</label>
-                <input id="edit-date_of_death" type="date" value={formData.date_of_death} onChange={handleChange} className="w-full border rounded px-2 py-1.5 text-xs outline-none" />
+                <input id="edit-dateOfDeath" type="date" value={formData.dateOfDeath} onChange={handleChange} className="w-full border rounded px-2 py-1.5 text-xs outline-none" />
               </div>
             </div>
           </div>

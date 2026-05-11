@@ -5,33 +5,30 @@ import GenerationDistribution from '@/components/analytics/GenerationDistributio
 import DocumentVault from '@/components/analytics/DocumentVault'
 import BirthdayReminders from '@/components/reminders/BirthdayReminders'
 import TraditionArchive from '@/components/traditions/TraditionArchive'
-import dynamic from 'next/dynamic'
+import MigrationMapClient from '@/components/analytics/MigrationMapClient'
 import Link from 'next/link'
 
-// MigrationMap uses Leaflet which requires window object, so we load it client-side
-const MigrationMap = dynamic(() => import('@/components/analytics/MigrationMap'), { 
-  ssr: false,
-  loading: () => <div className="h-[400px] w-full bg-gray-100 animate-pulse rounded-2xl flex items-center justify-center text-gray-400">Loading Migration Map...</div>
-})
-
 export default async function AnalyticsPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   let stats: any = null
   let occupationTrends: any[] = []
   let migrationData: any[] = []
   let hasData = false
 
   if (supabase) {
-    // 1. Fetch Statistics Dashboard view
-    const { data: statsData } = await supabase.from('view_statistics').select('*').single()
+    // Fetch all analytics data concurrently
+    const [
+      { data: statsData },
+      { data: occData },
+      { data: migData }
+    ] = await Promise.all([
+      supabase.from('view_statistics').select('*').single(),
+      supabase.from('view_occupation_trends').select('*'),
+      supabase.from('view_migration_timeline').select('*')
+    ])
+
     stats = statsData
-
-    // 2. Fetch Occupation Trends
-    const { data: occData } = await supabase.from('view_occupation_trends').select('*')
     occupationTrends = occData || []
-
-    // 3. Fetch Migration Timeline
-    const { data: migData } = await supabase.from('view_migration_timeline').select('*')
     migrationData = migData || []
     
     if (stats && stats.total_members > 0) {
@@ -125,7 +122,7 @@ export default async function AnalyticsPage() {
             </div>
           </div>
           <div className="h-[500px] w-full rounded-xl overflow-hidden border border-gray-100">
-            <MigrationMap data={migrationData} />
+            <MigrationMapClient data={migrationData} />
           </div>
           <div className="mt-4 text-sm text-gray-500 italic">
             * Map shows major migration routes and ancestral locations recorded in our history.

@@ -1,29 +1,84 @@
-import { useState, useEffect } from 'react'
+'use client'
+
+import { useState, useEffect, useRef, useCallback } from 'react'
+import Image from 'next/image'
+import useSWR from 'swr'
+import { createClient } from '@/lib/supabase/client'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
+
+const ITEMS_PER_PAGE = 12
+
+// SWR Fetcher
+const fetchMedia = async ([filter, page]: [string, number]) => {
+  const supabase = createClient()
+  if (!supabase) throw new Error("Supabase not configured")
+
+  const from = page * ITEMS_PER_PAGE
+  const to = from + ITEMS_PER_PAGE - 1
+
+  let query = supabase
+    .from('media')
+    .select('*', { count: 'exact' })
+    .order('upload_date', { ascending: false })
+    .range(from, to)
+
+  if (filter !== 'All') {
+    const dbType = filter.endsWith('s') ? filter.slice(0, -1) : filter
+    query = query.eq('file_type', dbType)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+  return data
+}
 
 export default function MediaGallery() {
   const [filter, setFilter] = useState('All')
   const [media, setMedia] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchMedia = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(`/api/media?type=${filter}`)
-        const result = await response.json()
-        if (!response.ok) throw new Error(result.error || 'Failed to fetch')
-        setMedia(result.data || [])
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setIsLoading(false)
-      }
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  
+  // Use SWR for caching and revalidation
+  const { data: newItems, error, isValidating } = useSWR(
+    [filter, page],
+    fetchMedia,
+    { 
+      revalidateOnFocus: false,
+      dedupingInterval: 60000 // Cache for 1 minute
     }
+  )
 
-    fetchMedia()
+  // Merge new items into local state for infinite scroll
+  useEffect(() => {
+    if (newItems) {
+      setMedia(prev => page === 0 ? newItems : [...prev, ...newItems])
+      setHasMore(newItems.length === ITEMS_PER_PAGE)
+    }
+  }, [newItems, page])
+
+  const observer = useRef<IntersectionObserver | null>(null)
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+    if (isValidating) return
+    if (observer.current) observer.current.disconnect()
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prev => prev + 1)
+      }
+    })
+    
+    if (node) observer.current.observe(node)
+  }, [isValidating, hasMore])
+
+  // Reset when filter changes
+  useEffect(() => {
+    setMedia([])
+    setPage(0)
+    setHasMore(true)
   }, [filter])
+
+  const isLoading = isValidating && media.length === 0
 
   return (
     <div className="space-y-6">
@@ -48,46 +103,61 @@ export default function MediaGallery() {
           ))}
         </div>
       ) : error ? (
-        <div className="py-20 text-center bg-red-50 text-red-600 rounded-3xl border border-red-100">
-          <p className="font-bold">Error loading gallery</p>
-          <p className="text-sm opacity-80">{error}</p>
-        </div>
+        <ErrorState title="Error loading gallery" message={error} />
       ) : media.length === 0 ? (
-        <div className="py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-          <p className="text-4xl mb-4">📸</p>
-          <h3 className="text-lg font-bold text-gray-800">No memories found</h3>
-          <p className="text-gray-500 mt-1">Start preserving family history by uploading your first photo.</p>
-        </div>
+        <EmptyState 
+          icon="📸" 
+          title="No memories found" 
+          description="Start preserving family history by uploading your first photo." 
+        />
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in fade-in duration-500">
-          {media.map((item) => (
-            <div key={item.id} className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100 transform hover:-translate-y-1">
-              <div className="aspect-square bg-gray-100 relative">
-                <img
-                  src={item.r2_url || item.thumbnail_url}
-                  alt={item.description || item.filename}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
-                  <button className="opacity-0 group-hover:opacity-100 bg-white text-primary px-4 py-2 rounded-xl shadow-lg transform scale-90 group-hover:scale-100 transition-all font-bold text-xs">
-                    View
-                  </button>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in fade-in duration-500">
+            {media.map((item, index) => (
+              <div 
+                key={item.id} 
+                ref={index === media.length - 1 ? lastElementRef : null}
+                className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100 transform hover:-translate-y-1"
+              >
+                <div className="aspect-square bg-gray-100 relative">
+                  <Image
+                    src={item.r2_url || item.thumbnail_url}
+                    alt={item.description || item.filename}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center z-10">
+                    <button className="opacity-0 group-hover:opacity-100 bg-white text-primary px-4 py-2 rounded-xl shadow-lg transform scale-90 group-hover:scale-100 transition-all font-bold text-xs">
+                      View
+                    </button>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <p className="text-sm font-bold text-gray-800 truncate">{item.description || item.filename}</p>
+                  <div className="flex justify-between items-center mt-1">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
+                      {item.upload_date ? new Date(item.upload_date).toLocaleDateString() : 'Unknown'}
+                    </p>
+                    <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold uppercase">
+                      {item.file_type}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="p-3">
-                <p className="text-sm font-bold text-gray-800 truncate">{item.description || item.filename}</p>
-                <div className="flex justify-between items-center mt-1">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
-                    {item.upload_date ? new Date(item.upload_date).toLocaleDateString() : 'Unknown'}
-                  </p>
-                  <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold uppercase">
-                    {item.file_type}
-                  </span>
-                </div>
-              </div>
+            ))}
+          </div>
+          
+          {isLoading && page > 0 && (
+            <div className="flex justify-center py-8">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
-          ))}
-        </div>
+          )}
+          
+          {!hasMore && media.length > 0 && (
+            <p className="text-center text-gray-400 text-sm py-12 italic">You&apos;ve reached the end of the archive.</p>
+          )}
+        </>
       )}
     </div>
   )

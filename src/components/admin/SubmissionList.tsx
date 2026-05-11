@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Alert from '@/components/ui/Alert'
 
 interface SubmissionListProps {
   initialSubmissions: any[]
@@ -57,11 +58,7 @@ export default function SubmissionList({ initialSubmissions }: SubmissionListPro
   return (
     <div>
       {message && (
-        <div className={`p-4 mb-6 rounded-lg border ${
-          message.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
-        }`}>
-          {message.text}
-        </div>
+        <Alert type={message.type} message={message.text} />
       )}
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">

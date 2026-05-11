@@ -1,4 +1,4 @@
--- ROOTS OF DEWANGAN (kulika) - Database Schema
+-- ROOTS OF Heritage (kulika) - Database Schema
 -- Version 2.0 - Comprehensive Edition
 
 -- Enable necessary extensions
@@ -603,35 +603,89 @@ FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 -- 5. SECURITY (RLS)
 -- ==========================================
 
+-- 1. ENABLE RLS ON ALL TABLES
 ALTER TABLE family_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE marriages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE media_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stories ENABLE ROW LEVEL SECURITY;
--- ... (Repeat for all tables)
+ALTER TABLE story_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_attendees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE traditions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tradition_practitioners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE occupations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE member_occupations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE education ENABLE ROW LEVEL SECURITY;
+ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE member_locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inbox ENABLE ROW LEVEL SECURITY;
+ALTER TABLE change_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE disputes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 
--- Policy: Anyone authenticated can view
-CREATE POLICY "Authenticated users can view all data"
+-- 2. SHARED ADMIN CHECK FUNCTION (For Performance)
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN (auth.jwt() ->> 'email') IN (SELECT email FROM admin_users);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 3. POLICIES FOR family_members
+CREATE POLICY "Authenticated users can view members"
 ON family_members FOR SELECT
 TO authenticated
 USING (true);
 
--- Policy: Only admins can modify data
-CREATE POLICY "Only admins can modify data"
+CREATE POLICY "Only admins can modify members"
 ON family_members FOR ALL
 TO authenticated
-USING (
-    auth.jwt() ->> 'email' IN (SELECT email FROM admin_users)
-)
-WITH CHECK (
-    auth.jwt() ->> 'email' IN (SELECT email FROM admin_users)
-);
+USING (is_admin())
+WITH CHECK (is_admin());
 
--- Policy: Contact info private
-CREATE POLICY "Contact info private"
-ON family_members FOR SELECT
+-- 4. POLICIES FOR inbox (SUBMISSION QUEUE)
+-- Patterns from user recommendation
+CREATE POLICY "Users can create submissions"
+ON inbox FOR INSERT
 TO authenticated
-USING (
-    CASE 
-        WHEN auth.jwt() ->> 'email' IN (SELECT email FROM admin_users) THEN true
-        ELSE (contact_info IS NULL) 
-    END
-);
+WITH CHECK (submitter_email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Users can view own submissions"
+ON inbox FOR SELECT
+TO authenticated
+USING (submitter_email = auth.jwt() ->> 'email' OR is_admin());
+
+CREATE POLICY "Admins can update submissions"
+ON inbox FOR UPDATE
+TO authenticated
+USING (is_admin())
+WITH CHECK (is_admin());
+
+CREATE POLICY "Admins can delete submissions"
+ON inbox FOR DELETE
+TO authenticated
+USING (is_admin());
+
+-- 5. POLICIES FOR media, stories, events, traditions
+-- Public Read for authenticated, Admin modify
+CREATE POLICY "Authenticated users can view media" ON media FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins can manage media" ON media FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+CREATE POLICY "Authenticated users can view stories" ON stories FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins can manage stories" ON stories FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+CREATE POLICY "Authenticated users can view events" ON events FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins can manage events" ON events FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+-- 6. POLICIES FOR JUNCTION TABLES
+CREATE POLICY "Authenticated users can view relations" ON marriages FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins manage marriages" ON marriages FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+-- 7. ADMIN USERS TABLE PROTECTION
+CREATE POLICY "Admins can view admin list" ON admin_users FOR SELECT TO authenticated USING (is_admin());
+CREATE POLICY "Only super admins manage admins" ON admin_users FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+-- 8. CHANGE LOG & DISPUTES
+CREATE POLICY "Admins view change log" ON change_log FOR SELECT TO authenticated USING (is_admin());
+CREATE POLICY "Admins manage disputes" ON disputes FOR ALL TO authenticated USING (is_admin());

@@ -44,28 +44,33 @@ export default function AddMemberModal() {
     }
 
     setIsSubmitting(true)
-    const success = await submitChange({
-      change_type: 'new_member',
-      proposed_data: formData,
-      submitted_by: 'Current User'
-    })
-    
-    if (success) {
-      setFormData({
-        full_name: '',
-        nickname: '',
-        gender: 'Male',
-        date_of_birth: '',
-        birth_place: '',
-        is_deceased: false,
-        date_of_death: '',
-        father_id: '',
-        mother_id: '',
-        bio: '',
+    try {
+      const success = await submitChange({
+        change_type: 'new_member',
+        proposed_data: formData,
+        submitted_by: 'Current User'
       })
-      setMode('VIEW')
+      
+      if (success) {
+        setFormData({
+          full_name: '',
+          nickname: '',
+          gender: 'Male',
+          date_of_birth: '',
+          birth_place: '',
+          is_deceased: false,
+          date_of_death: '',
+          father_id: '',
+          mother_id: '',
+          bio: '',
+        })
+        setMode('VIEW')
+      }
+    } catch (error) {
+      console.error('Submit error:', error)
+    } finally {
+      setIsSubmitting(false)
     }
-    setIsSubmitting(false)
   }
 
   return (
@@ -157,20 +162,14 @@ export default function AddMemberModal() {
           <button 
             onClick={() => setMode('VIEW')} 
             disabled={isSubmitting}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
+            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button 
-            disabled={isSubmitting}
-            className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors disabled:opacity-50"
-          >
-            Save as Draft
-          </button>
-          <button 
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="px-8 py-2 bg-blue-600 text-white rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 disabled:opacity-50"
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">

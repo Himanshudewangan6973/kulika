@@ -1,11 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
+import { unifiedMemberSchema, normalizeToUnified, unifiedToDatabase } from '@/lib/schemas/memberSchema'
+import { validateInboxSubmission, formatValidationErrors } from '@/lib/schemas/validation'
+import { ZodError } from 'zod'
 
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const id = params.id
+  const { id } = await params
 
   try {
     const supabaseAdmin = createClient(
@@ -31,74 +35,85 @@ export async function POST(
     const { submission_type, raw_data } = inboxEntry
     let result: any = null
 
+    // 1.5 Validate submission data structure
+    const validation = validateInboxSubmission(inboxEntry)
+    if (!validation.valid) {
+      return NextResponse.json({
+        error: 'Invalid submission data',
+        details: validation.errors?.join(', ')
+      }, { status: 400 })
+    }
+
     // 2. Handle approval based on type
     if (submission_type === 'New Member') {
-      // Extract member data (handle both Tally and local form formats)
-      let memberData: any = {}
+      let normalizedData: any
       
-      if (raw_data.fields) {
-        // Tally format
-        raw_data.fields.forEach((f: any) => {
-          const label = f.label.toLowerCase()
-          if (label.includes('full name')) memberData.full_name = f.value
-          if (label.includes('nickname')) memberData.nickname = f.value
-          if (label.includes('gender')) memberData.gender = f.value
-          if (label.includes('birth') && label.includes('date')) memberData.date_of_birth = f.value
-          if (label.includes('birth') && label.includes('place')) memberData.birth_place = f.value
-          if (label.includes('lineage')) memberData.lineage = f.value
-        })
-      } else {
-        // Local form format (already flattened)
-        memberData = {
-          full_name: raw_data.full_name,
-          nickname: raw_data.nickname,
-          gender: raw_data.gender,
-          date_of_birth: raw_data.date_of_birth,
-          birth_place: raw_data.birth_place,
-          lineage: raw_data.lineage,
+      try {
+        // Normalize raw_data to unified schema using helper
+        normalizedData = normalizeToUnified(raw_data)
+      } catch (normalizeError) {
+        if (normalizeError instanceof ZodError) {
+          const fieldErrors = normalizeError.errors.map(e => 
+            `${e.path.join('.')}: ${e.message}`
+          )
+          return NextResponse.json({ 
+            error: 'Invalid member data format',
+            details: fieldErrors
+          }, { status: 400 })
+        }
+        throw normalizeError
+      }
+
+      // Map tree-relative submissions to parent/child fields when possible
+      if (raw_data?.relationship_to_base && raw_data?.base_member_id) {
+        const relation = raw_data.relationship_to_base
+        const baseMemberId = raw_data.base_member_id
+
+        if (relation === 'child') {
+          if (!normalizedData.parent1Id) {
+            normalizedData.parent1Id = baseMemberId
+          } else if (!normalizedData.parent2Id) {
+            normalizedData.parent2Id = baseMemberId
+          }
         }
       }
 
-      // Insert into family_members
-      const { data: newMember, error: insertError } = await supabaseAdmin
-        .from('family_members')
-        .insert({
-          ...memberData,
-          added_by: inboxEntry.submitter_email || 'Admin Approved'
-        })
-        .select()
-        .single()
-
-      if (insertError) {
-        console.error('Error creating member:', insertError)
-        return NextResponse.json({ error: 'Failed to create member', details: insertError.message }, { status: 500 })
-      }
+      // Convert normalized data to database format (snake_case)
+      const dbData = unifiedToDatabase(normalizedData)
       
-      result = { id: newMember.id, type: 'family_member' }
+      // Use transaction-safe approval function
+      const { data: funcResult, error: funcError } = await supabaseAdmin.rpc(
+        'approve_member_submission',
+        {
+          p_inbox_id: id,
+          p_member_data: {
+            ...dbData,
+            added_by: inboxEntry.submitter_email || 'Admin Approved',
+            relationship_to_base: raw_data?.relationship_to_base,
+            base_member_id: raw_data?.base_member_id
+          }
+        }
+      )
+
+      if (funcError || !funcResult?.success) {
+        console.error('Approval function error:', funcError || funcResult?.error)
+        return NextResponse.json({ 
+          error: 'Failed to approve submission',
+          details: funcError?.message || funcResult?.error
+        }, { status: 500 })
+      }
+
+      result = { id: funcResult.member_id, type: 'family_member' }
     } else if (submission_type === 'Story') {
       // Handle story approval... (implement as needed)
-      // For now, let's focus on members as requested in Phase 3
       return NextResponse.json({ error: 'Story approval not fully implemented yet' }, { status: 501 })
     } else {
       return NextResponse.json({ error: `Approval for ${submission_type} not implemented` }, { status: 501 })
     }
 
-    // 3. Update inbox status
-    const { error: updateError } = await supabaseAdmin
-      .from('inbox')
-      .update({
-        status: 'Approved',
-        reviewed_by: 'Admin', // In real app, get from auth session
-        review_date: new Date().toISOString(),
-        linked_record_id: result.id,
-        linked_record_type: result.type
-      })
-      .eq('id', id)
-
-    if (updateError) {
-      console.error('Error updating inbox status:', updateError)
-      // We don't return error here because the record was already created
-    }
+    // 3. Revalidate tree page cache so approved members appear immediately
+    revalidatePath('/tree')
+    revalidatePath('/admin/inbox')
 
     return NextResponse.json({ 
       success: true, 

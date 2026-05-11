@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import PWARegistration from "@/components/PWARegistration";
@@ -6,11 +6,14 @@ import OfflineIndicator from "@/components/OfflineIndicator";
 
 const inter = Inter({ subsets: ["latin"] });
 
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+};
+
 export const metadata: Metadata = {
-  title: "kulika | Roots of Dewangan",
+  title: "kulika | Roots of Heritage",
   description: "AI-powered family heritage documentation system",
   manifest: "/manifest.json",
-  themeColor: "#2563eb",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

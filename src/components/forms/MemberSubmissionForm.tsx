@@ -3,21 +3,9 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
 import { createClient } from '@/lib/supabase/client'
-
-const memberSchema = z.object({
-  full_name: z.string().min(2, 'Name must be at least 2 characters'),
-  nickname: z.string().optional(),
-  gender: z.enum(['Male', 'Female', 'Other']),
-  date_of_birth: z.string().optional(),
-  birth_place: z.string().optional(),
-  lineage: z.enum(['Father', 'Mother', 'Both']),
-  submitter_name: z.string().min(2, 'Your name is required'),
-  submitter_email: z.string().email('Invalid email address'),
-})
-
-type MemberFormValues = z.infer<typeof memberSchema>
+import { submissionSchema, SubmissionData } from '@/lib/schemas/memberSchema'
+import Alert from '@/components/ui/Alert'
 
 export default function MemberSubmissionForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -29,15 +17,15 @@ export default function MemberSubmissionForm() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<MemberFormValues>({
-    resolver: zodResolver(memberSchema),
+  } = useForm<SubmissionData>({
+    resolver: zodResolver(submissionSchema),
     defaultValues: {
       gender: 'Male',
       lineage: 'Father',
     }
   })
 
-  const onSubmit = async (data: MemberFormValues) => {
+  const onSubmit = async (data: SubmissionData) => {
     setIsSubmitting(true)
     setMessage(null)
 
@@ -58,8 +46,8 @@ export default function MemberSubmissionForm() {
         submission_type: 'New Member',
         status: 'Pending',
         raw_data: data,
-        submitter_name: data.submitter_name,
-        submitter_email: data.submitter_email,
+        submitter_name: data.submitterName,
+        submitter_email: data.submitterEmail,
       })
 
       if (error) throw error
@@ -79,22 +67,33 @@ export default function MemberSubmissionForm() {
       <h2 className="text-2xl font-bold text-primary mb-6">Add Family Member</h2>
       
       {message && (
-        <div className={`p-4 mb-6 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-          {message.text}
-        </div>
+        <Alert type={message.type} message={message.text} />
       )}
+
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
             <input
-              {...register('full_name')}
+              {...register('firstName')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              placeholder="e.g. Ramesh Kumar Dewangan"
+              placeholder="e.g. Ramesh"
             />
-            {errors.full_name && <p className="mt-1 text-xs text-red-500">{errors.full_name.message}</p>}
+            {errors.firstName && <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>}
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+            <input
+              {...register('lastName')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              placeholder="e.g. Dewangan"
+            />
+            {errors.lastName && <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nickname</label>
             <input
@@ -103,9 +102,6 @@ export default function MemberSubmissionForm() {
               placeholder="e.g. Ramu"
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
             <select
@@ -117,17 +113,21 @@ export default function MemberSubmissionForm() {
               <option value="Other">Other</option>
             </select>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Lineage</label>
             <select
               {...register('lineage')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
             >
-              <option value="Father">Father's Side</option>
-              <option value="Mother">Mother's Side</option>
+              <option value="Father">Father&apos;s Side</option>
+              <option value="Mother">Mother&apos;s Side</option>
               <option value="Both">Both</option>
             </select>
           </div>
+          <div></div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -135,14 +135,14 @@ export default function MemberSubmissionForm() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
             <input
               type="date"
-              {...register('date_of_birth')}
+              {...register('dateOfBirth')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Birth Place</label>
             <input
-              {...register('birth_place')}
+              {...register('birthPlace')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               placeholder="e.g. Raipur, CG"
             />
@@ -156,19 +156,19 @@ export default function MemberSubmissionForm() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Your Name *</label>
             <input
-              {...register('submitter_name')}
+              {...register('submitterName')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
             />
-            {errors.submitter_name && <p className="mt-1 text-xs text-red-500">{errors.submitter_name.message}</p>}
+            {errors.submitterName && <p className="mt-1 text-xs text-red-500">{errors.submitterName.message}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Your Email *</label>
             <input
               type="email"
-              {...register('submitter_email')}
+              {...register('submitterEmail')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
             />
-            {errors.submitter_email && <p className="mt-1 text-xs text-red-500">{errors.submitter_email.message}</p>}
+            {errors.submitterEmail && <p className="mt-1 text-xs text-red-500">{errors.submitterEmail.message}</p>}
           </div>
         </div>
 

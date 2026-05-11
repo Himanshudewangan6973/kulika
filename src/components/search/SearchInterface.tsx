@@ -1,4 +1,8 @@
+"use client"
+
 import { useState } from 'react'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
 
 export default function SearchInterface() {
   const [query, setQuery] = useState('')
@@ -50,9 +54,7 @@ export default function SearchInterface() {
       </form>
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-2xl text-center">
-          {error}
-        </div>
+        <ErrorState message={error} />
       )}
 
       {query && !error && (
@@ -87,11 +89,11 @@ export default function SearchInterface() {
           </div>
 
           {!isSearching && results.length === 0 && (
-            <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-              <p className="text-4xl mb-4">🏜️</p>
-              <h3 className="text-lg font-bold text-gray-800">No results found</h3>
-              <p className="text-gray-500 mt-1">Try searching for a different branch of the tree or a family theme.</p>
-            </div>
+            <EmptyState 
+              icon="🏜️" 
+              title="No results found" 
+              description="Try searching for a different branch of the tree or a family theme." 
+            />
           )}
         </div>
       )}

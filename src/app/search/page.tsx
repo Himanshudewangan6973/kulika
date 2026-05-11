@@ -5,7 +5,12 @@ export default function SearchPage() {
   return (
     <main className="min-h-screen bg-surface py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <header className="text-center mb-16">
+        <header className="text-center mb-16 relative">
+          <div className="absolute top-0 left-0">
+            <Link href="/" className="text-primary hover:text-primary-dark font-medium flex items-center gap-2 transition-all hover:-translate-x-1">
+              <span className="text-xl">←</span> Back
+            </Link>
+          </div>
           <div className="flex justify-center mb-6">
             <Link href="/" className="w-16 h-16 bg-primary text-white rounded-2xl flex items-center justify-center text-3xl shadow-xl hover:rotate-3 transition-all">
               K
