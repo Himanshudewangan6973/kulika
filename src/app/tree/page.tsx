@@ -16,7 +16,7 @@ export default async function TreePage() {
         // Only load first 3 generations initially for performance
         // Users can "Expand Lineage" to see more
         supabase.from('family_members').select('*').lte('generation', 3).order('generation', { ascending: true }),
-        supabase.from('inbox').select('*').eq('status', 'Pending').order('created_at', { ascending: false })
+        supabase.from('inbox').select('*').eq('status', 'Pending').order('submission_date', { ascending: false })
       ])
       
       if (approvedError) {
@@ -25,7 +25,10 @@ export default async function TreePage() {
       }
       
       if (pendingError) {
-        console.error('❌ Error fetching pending submissions:', pendingError)
+        console.error(
+          '❌ Error fetching pending submissions:',
+          JSON.stringify(pendingError, null, 2)
+        )
         error = 'Failed to load pending submissions'
       }
 

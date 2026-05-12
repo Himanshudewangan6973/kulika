@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev:clean": "rm -rf .next && next dev",
+    "dev": "next dev",
+    "build": "next build",
     "build:clean": "rm -rf .next && next build",
     "start": "next start",
     "lint": "next lint",
+    "clean": "rm -rf .next",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

@@ -27,8 +27,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className={`${inter.className} min-h-full flex flex-col`}>
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <body
+        className={`${inter.className} min-h-full flex flex-col`}
+        suppressHydrationWarning
+      >
         <OfflineIndicator />
         <PWARegistration />
         {children}
