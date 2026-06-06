@@ -1,6 +1,22 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# ==========================================
+# Personal Reference & Documentation (Exclusions)
+# ==========================================
+docs/
+Type
+yes
+
+# ==========================================
+# AI Tooling & Local Assistant Caches
+# ==========================================
+.agents/
+.codex/
+
+# ==========================================
+# Core Dependencies
+# ==========================================
+node_modules/
 /node_modules
 /.pnp
 .pnp.*
@@ -10,32 +26,52 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# ==========================================
+# Testing Frameworks
+# ==========================================
 /coverage
 
-# next.js
+# ==========================================
+# Next.js Build Outputs & Caches
+# ==========================================
 /.next/
 /out/
+.next/
 
-# production
+# ==========================================
+# Production Builds
+# ==========================================
 /build
 
-# misc
+# ==========================================
+# Environments & Sensitive Credentials (CRITICAL)
+# ==========================================
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+.env*
+
+# ==========================================
+# System & Debug Logs
+# ==========================================
 .DS_Store
 *.pem
-
-# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
 .vercel
 
-# typescript
+# ==========================================
+# TypeScript Compilation Caches
+# ==========================================
 *.tsbuildinfo
 next-env.d.ts
+tsconfig.tsbuildinfo
+
+# ==========================================
+# Reference PDFs
+# ==========================================
+ROOTS_OF_DEWANGAN.pdf

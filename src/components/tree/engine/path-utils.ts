@@ -5,7 +5,6 @@ export const getStraightPath = (source: Point, target: Point): string => {
 };
 
 export const getBezierPath = (source: Point, target: Point): string => {
-  const dx = target.x - source.x;
   const dy = target.y - source.y;
   const controlPoint1 = { x: source.x, y: source.y + dy / 2 };
   const controlPoint2 = { x: target.x, y: target.y - dy / 2 };
@@ -15,7 +14,15 @@ export const getBezierPath = (source: Point, target: Point): string => {
 
 export const getOrthogonalPath = (source: Point, target: Point): string => {
   const midY = source.y + (target.y - source.y) / 2;
-  return `M ${source.x} ${source.y} V ${midY} H ${target.x} V ${target.y}`;
+
+  // Vertical Step (TB)
+  if (Math.abs(target.y - source.y) > Math.abs(target.x - source.x)) {
+    return `M ${source.x} ${source.y} V ${midY} H ${target.x} V ${target.y}`;
+  } 
+  
+  // Horizontal Step (LR)
+  const midX = source.x + (target.x - source.x) / 2;
+  return `M ${source.x} ${source.y} H ${midX} V ${target.y} H ${target.x}`;
 };
 
 export const getCustomPath = (source: Point, target: Point, bendPoints: BendPoint[]): string => {

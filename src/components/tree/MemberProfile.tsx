@@ -1,11 +1,19 @@
+/**
+ * @file src/components/tree/MemberProfile.tsx
+ * @description Detailed profile view for a single family member.
+ * Requirement: Displays comprehensive member information including bio, media, stories, and claims.
+ */
+
 "use client"
 
 import { useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
+import { Globe } from 'lucide-react'
 import MemberMedia from '@/components/members/MemberMedia'
 import MemberStories from '@/components/members/MemberStories'
 import MemberTimeline from '@/components/members/MemberTimeline'
+import { useClaimsQuery } from '@/hooks/useClaimsQuery'
+import { useSwipeGesture } from '@/hooks/useSwipeGesture'
 
 interface MemberProfileProps {
   member: any
@@ -17,6 +25,11 @@ interface MemberProfileProps {
 
 export default function MemberProfile({ member, media, stories, events, marriages }: MemberProfileProps) {
   const [activeTab, setActiveTab] = useState('bio')
+  
+  // Fetch claims in the background
+  useClaimsQuery(member.id)
+  
+  const displayName = member.preferred_display_name || member.full_name
 
   const tabs = [
     { id: 'bio', label: 'Bio' },
@@ -26,8 +39,20 @@ export default function MemberProfile({ member, media, stories, events, marriage
     { id: 'timeline', label: 'Timeline' },
   ]
 
+  useSwipeGesture(
+    () => {
+      const currentIndex = tabs.findIndex(t => t.id === activeTab);
+      if (currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1].id);
+    },
+    () => {
+      const currentIndex = tabs.findIndex(t => t.id === activeTab);
+      if (currentIndex > 0) setActiveTab(tabs[currentIndex - 1].id);
+    }
+  );
+
   return (
     <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+
       {/* Header / Basic Info */}
       <div className="bg-primary p-8 text-white">
         <div className="flex flex-col md:flex-row items-center gap-8">
@@ -35,19 +60,22 @@ export default function MemberProfile({ member, media, stories, events, marriage
             {member.profile_photo_url ? (
               <Image 
                 src={member.profile_photo_url} 
-                alt={member.full_name} 
+                alt={displayName} 
                 fill 
                 className="object-cover"
                 sizes="128px"
               />
             ) : (
-              member.full_name?.charAt(0)
+              displayName?.charAt(0)
             )}
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h1 className="text-3xl font-extrabold">{member.full_name}</h1>
+            <h1 className="text-3xl font-extrabold">{displayName}</h1>
             {member.nickname && <p className="text-blue-100 text-lg mt-1 italic">&quot;{member.nickname}&quot;</p>}
             <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4 text-sm">
+              <span className="bg-white/10 px-3 py-1 rounded-full border border-white/20 flex items-center gap-1.5">
+                <Globe size={14} /> {member.community_id || member.community_override || 'Global Community'}
+              </span>
               <span className="bg-white/10 px-3 py-1 rounded-full border border-white/20">
                 Born: {member.date_of_birth || 'Unknown'}
               </span>
@@ -172,7 +200,7 @@ export default function MemberProfile({ member, media, stories, events, marriage
                       {marriages.map((m, i) => (
                         <p key={i} className="text-sm">
                           <span className="font-semibold text-primary">
-                            {m.spouse1?.full_name === member.full_name ? m.spouse2?.full_name : m.spouse1?.full_name}
+                            {m.spouse1?.full_name === member.full_name ? (m.spouse2?.preferred_display_name || m.spouse2?.full_name) : (m.spouse1?.preferred_display_name || m.spouse1?.full_name)}
                           </span>
                           <span className="text-gray-400 ml-2">({m.marriage_date ? new Date(m.marriage_date).getFullYear() : 'Unknown'})</span>
                         </p>

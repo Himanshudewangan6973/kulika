@@ -1,4 +1,8 @@
-import React from 'react'
+/**
+ * @file src/components/ui/LoadingSpinner.tsx
+ * @description Reusable loading spinner component.
+ * Requirement: Provides a consistent loading state UI across the application.
+ */
 
 interface LoadingSpinnerProps {
   message?: string

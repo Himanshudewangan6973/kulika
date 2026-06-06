@@ -24,11 +24,27 @@ src/components/tree/
 \`\`\`
 
 ## Rendering Architecture
+...
 The system uses a **Synchronized Viewport** hybrid model.
-1. **D3-Zoom:** Bound to an invisible div to handle pan/zoom gestures smoothly.
-2. **Hybrid Switcher (`TreeViewport.tsx`):**
-   - **`TreeSVG`:** Renders `<svg>` for lines and absolute-positioned `<div>`s for nodes. Perfect for small trees where DOM interaction is needed.
-   - **`TreeCanvas`:** Renders raw pixels using `requestAnimationFrame`. Employs **Level of Detail (LOD)** (circles -> images/text -> placeholders) depending on zoom scale.
+...
+
+---
+
+## Enhanced Architecture (v3.0)
+The platform is currently transitioning to a **Collaborative Heritage Knowledge Platform**. For detailed technical specifications on this evolution, see:
+
+- **[Incremental Build Guide](./BUILD_GUIDE.md)**: A task-based implementation roadmap.
+- **[Types & State Management](./ENHANCED_TYPES_STORES.md)**: Interfaces and Zustand store patterns.
+- **[Components & Hooks](./ENHANCED_COMPONENTS_HOOKS.md)**: UI blueprints for confidence indicators, evidence upload, and moderation.
+- **[API & Configuration](./ENHANCED_API_CONFIG.md)**: Server-side handlers for claims, duplicate detection, and middleware.
+- **[Admin & User Guide](./ENHANCED_ADMIN_USER_GUIDE.md)**: Operating procedures for family owners and moderators.
+- **[Testing Suite](./ENHANCED_TESTING.md)**: Strategies for component, hook, and integration testing.
+- **[PWA & Offline Sync](./ENHANCED_PWA_OFFLINE.md)**: Service workers, IndexedDB management, and PWA lifecycle.
+- **[Deployment & Operations](./ENHANCED_DEPLOYMENT_OPS.md)**: Docker, CI/CD with GitHub Actions, monitoring, and error handling.
+- **[Security & API Hardening](./ENHANCED_SECURITY_API.md)**: Rate limiting, security headers, and OpenAPI 3.0 specification.
+- **[Database Migrations](./ENHANCED_MIGRATIONS.md)**: Schema versioning and automated migration runners.
+
+---
 
 ## D3 Integration
 D3 is used purely for math, not DOM manipulation.

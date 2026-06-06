@@ -1,38 +1,43 @@
+/**
+ * @file src/app/api/media/route.ts
+ * @description API endpoint for retrieving family media assets (photos, videos, docs).
+ * Requirement: Supports the media gallery with filtering and pagination.
+ */
+
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { withErrorHandler, errorCodes, KulikaError } from '@/lib/error-handler';
 
-export async function GET(req: Request) {
+export const GET = withErrorHandler(async (req) => {
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type");
+  const communityId = searchParams.get("communityId");
 
   const supabase = await createClient();
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+    throw new KulikaError(errorCodes.SERVICE_UNAVAILABLE.code, 'Database not configured', 503);
   }
 
-  try {
-    let query = supabase
-      .from('media')
-      .select('*')
-      .order('upload_date', { ascending: false });
+  let query = supabase
+    .from('media')
+    .select('*')
+    .order('upload_date', { ascending: false });
 
-    if (type && type !== 'All') {
-      // type can be 'Photos', 'Videos', 'Documents'
-      // DB uses 'Photo', 'Video', 'Document'
-      const dbType = type.endsWith('s') ? type.slice(0, -1) : type;
-      query = query.eq('file_type', dbType);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    return NextResponse.json({
-      success: true,
-      data: data || []
-    });
-  } catch (err: any) {
-    console.error("Media fetch error:", err);
-    return NextResponse.json({ error: "Failed to fetch media", details: err.message }, { status: 500 });
+  if (communityId) {
+    query = query.eq('community_id', communityId);
   }
-}
+
+  if (type && type !== 'All') {
+    const dbType = type.endsWith('s') ? type.slice(0, -1) : type;
+    query = query.eq('file_type', dbType);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  return NextResponse.json({
+    success: true,
+    data: data || []
+  });
+});

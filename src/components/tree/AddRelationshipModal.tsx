@@ -31,6 +31,9 @@ export default function AddRelationshipModal({ isOpen, onClose, sourceMember, ta
   const [customDesc, setCustomDesc] = useState('');
   const submitChange = useTreeStore(state => state.submitChange);
 
+  const sourceDisplayName = sourceMember.preferred_display_name || sourceMember.full_name;
+  const targetDisplayName = targetMember ? (targetMember.preferred_display_name || targetMember.full_name) : 'Select Member';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetMember) return;
@@ -64,9 +67,9 @@ export default function AddRelationshipModal({ isOpen, onClose, sourceMember, ta
           <div className="flex items-center justify-center gap-4 mb-8">
             <div className="flex flex-col items-center gap-2">
               <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600">
-                {sourceMember.firstName[0]}
+                {sourceDisplayName.charAt(0) || '?'}
               </div>
-              <span className="text-[10px] text-gray-500 font-medium">{sourceMember.firstName}</span>
+              <span className="text-[10px] text-gray-500 font-medium">{sourceDisplayName}</span>
             </div>
             <div className="flex-1 h-px bg-dashed bg-gray-200 relative">
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2">
@@ -75,9 +78,9 @@ export default function AddRelationshipModal({ isOpen, onClose, sourceMember, ta
             </div>
             <div className="flex flex-col items-center gap-2">
               <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center font-bold text-gray-400 italic">
-                {targetMember ? targetMember.firstName[0] : '?'}
+                {targetMember ? (targetDisplayName.charAt(0) || '?') : '?'}
               </div>
-              <span className="text-[10px] text-gray-500 font-medium">{targetMember ? targetMember.firstName : 'Select Member'}</span>
+              <span className="text-[10px] text-gray-500 font-medium">{targetMember ? targetDisplayName : 'Select Member'}</span>
             </div>
           </div>
 

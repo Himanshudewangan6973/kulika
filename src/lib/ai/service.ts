@@ -3,7 +3,7 @@
  * In production, these would fetch real endpoints using CLOUDFLARE_AI_TOKEN
  */
 
-export async function analyzeImage(imageUrl: string) {
+export async function analyzeImage(_imageUrl: string) {
   // Simulate AI Processing Delay
   await new Promise(resolve => setTimeout(resolve, 2000))
 
@@ -18,7 +18,7 @@ export async function analyzeImage(imageUrl: string) {
   }
 }
 
-export async function analyzeStory(text: string) {
+export async function analyzeStory(_text: string) {
   // Simulate LLM Processing Delay
   await new Promise(resolve => setTimeout(resolve, 1500))
 
@@ -30,7 +30,7 @@ export async function analyzeStory(text: string) {
   }
 }
 
-export async function generateEmbeddings(text: string) {
+export async function generateEmbeddings(_text: string) {
   // Mock vector generation
-  return Array.from({ length: 768 }, () => Math.random())
+  return Array.from({ length: 1536 }, () => Math.random())
 }

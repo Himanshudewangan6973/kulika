@@ -1,22 +1,16 @@
+/**
+ * @file src/app/stories/page.tsx
+ * @description Family narratives and oral history archive.
+ * Requirement: Provides an interface for reading and submitting multi-generational stories.
+ */
+
 import StoryArchive from '@/components/stories/StoryArchive'
 import StorySubmissionForm from '@/components/stories/StorySubmissionForm'
-import Link from 'next/link'
+import { ScrollText } from 'lucide-react'
 
 export default function StoriesPage() {
   return (
-    <main className="min-h-screen bg-surface pb-20">
-      <header className="bg-white border-b border-gray-200 px-6 py-6 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-primary hover:text-primary-dark transition-colors">
-            <span className="text-xl">←</span>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Narrative Archive</h1>
-            <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-0.5">Oral History Preservation</p>
-          </div>
-        </div>
-      </header>
-
+    <main className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Left: History Stream */}
@@ -37,11 +31,14 @@ export default function StoriesPage() {
               </div>
               <StorySubmissionForm />
               
-              <div className="mt-8 p-6 bg-blue-600 rounded-2xl text-white shadow-xl">
-                <h3 className="font-bold text-lg mb-2">Voice Recording</h3>
-                <p className="text-sm text-blue-100 mb-4 opacity-80">Prefer speaking to typing? Use our AI-transcription tool to record oral histories.</p>
-                <button className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold transition-all border border-white/30">
-                  🎙️ Start Recording
+              <div className="mt-8 p-8 bg-indigo-600 rounded-[32px] text-white shadow-2xl shadow-indigo-200 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                <h3 className="font-black text-xl mb-3 relative z-10">Voice Narratives</h3>
+                <p className="text-sm text-indigo-100 mb-6 opacity-90 relative z-10 leading-relaxed">
+                  Prefer speaking to typing? Use our AI-transcription tool to capture oral histories directly from your voice.
+                </p>
+                <button className="w-full py-4 bg-white text-indigo-600 rounded-2xl font-black transition-all hover:bg-indigo-50 shadow-xl flex items-center justify-center gap-2">
+                  <ScrollText size={20} /> Start Recording
                 </button>
               </div>
             </div>

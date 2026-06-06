@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 export default function DocumentVault() {
-  const [isUploading, setIsUploading] = useState(false)
+  const [_isUploading, setIsUploading] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const [scannedText, setScannedText] = useState<string | null>(null)
 

@@ -2,38 +2,41 @@
 
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
-import { createClient } from '@/lib/supabase/client'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 
+import { useFamilySpaceStore } from '@/store/familySpaceStore'
+
 const PAGE_SIZE = 5
 
-// SWR Fetcher
-const fetchEvents = async (page: number) => {
-  const supabase = createClient()
-  if (!supabase) throw new Error("Supabase not configured")
+// Fetcher using standardized API
+const fetchEvents = async (page: number, communityId?: string) => {
+  const url = `/api/events?page=${page}&limit=${PAGE_SIZE}${communityId ? `&communityId=${communityId}` : ''}`;
+  const response = await fetch(url);
+  
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error(`Unable to load events (Status: ${response.status})`);
+  }
 
-  const from = page * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
-
-  const { data, error } = await supabase
-    .from('events')
-    .select('*')
-    .order('event_date', { ascending: true })
-    .range(from, to)
-
-  if (error) throw error
-  return data
+  const result = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(result.error?.message || result.error || 'Failed to fetch events');
+  }
+  
+  return result.data;
 }
 
 export default function TimelineView() {
+  const { currentSpace } = useFamilySpaceStore()
   const [events, setEvents] = useState<any[]>([])
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
 
   const { data: newEvents, error, isValidating } = useSWR(
-    ['events', page],
-    () => fetchEvents(page),
+    ['events', page, currentSpace?.id],
+    () => fetchEvents(page, currentSpace?.id),
     { 
       revalidateOnFocus: false,
       dedupingInterval: 300000 // Cache for 5 minutes
@@ -69,7 +72,7 @@ export default function TimelineView() {
 
   if (error) {
     return (
-      <ErrorState title="Error loading timeline" message={error} />
+      <ErrorState title="Error loading timeline" message={error?.message || 'Something went wrong'} />
     )
   }
 
@@ -86,7 +89,7 @@ export default function TimelineView() {
   return (
     <div className="space-y-12">
       <div className="relative space-y-12 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
-        {events.map((event, i) => (
+        {events.map((event, _i) => (
           <div key={event.id} className={`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active`}>
             {/* Icon */}
             <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-primary text-white shadow shadow-primary/20 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 group-hover:scale-110 transition-transform">

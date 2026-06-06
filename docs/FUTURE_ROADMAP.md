@@ -1,25 +1,45 @@
-# Future Roadmap
+# Future Roadmap: The Collaborative Heritage Knowledge Platform
 
-## Immediate Technical Priorities
-1. **Supabase Integration:** `submitChange` is now wired to actual Supabase inbox writes; the remaining task is to hook `fetchRelatives` into the database.
-2. **Multi-Spouse Layout Fine-Tuning:** The D3 layout worker needs enhanced offset logic to place multiple spouses gracefully next to a central node without line overlapping.
+## Strategic Vision Shift
+"Roots of Heritage" (kulika) is evolving from a single, global family tree application into a **Collaborative Heritage Knowledge Platform**. The core philosophy shifts from "storing the absolute truth" to "storing verifiable claims, evidence, and preserving uncertainty."
 
-## Scalability Ideas
-- **Server-Side Tree Pruning:** Right now, the client loads generations 1-3. We need infinite-scrolling/lazy-loading for the tree, where expanding a node fetches generation N+1 dynamically.
-- **Ltree Migration:** If tree traversal becomes slow, migrate PostgreSQL from recursive CTEs to the `ltree` extension for O(1) ancestor/descendant lookups.
+### Core Principles for Future Development
+1. **Preserve Original Information:** Never destroy history. Store claims, not just "the truth".
+2. **Store Uncertainty:** Do not force certainty. A 40% confidence score is valid data.
+3. **Prefer Claims Over Truth:** Let humans decide what is true based on some accumulated evidence.
+4. **Prefer Evidence Over Opinions:** Proof (documents, photos) > assumptions.
+5. **Everything Important is Reversible:** Any merge, edit, or approval must be undoable.
+6. **Privacy First:** Default to private, opt-in to public. Protect sensitive fields.
+7. **Family Spaces Before Global Data:** Isolate data by family (e.g., Dewangan space is separate from others).
 
-## Missing Features
-- **Minimap:** A small UI widget in the bottom corner showing the current viewport rectangle relative to the entire tree bounding box.
-- **PDF/Image Export:** Implement `html2canvas` or a similar tool to let users download a high-res rendering of their current viewport.
+---
+
+## Implementation Priority Phases
+
+### Phase 1A: Foundation (Multi-Space & Auditing)
+*   **Family Spaces:** Implement the `families` table to isolate data and governance. Add `family_id` to all existing entities.
+*   **Claims Architecture:** Shift from editing records to submitting `claims` (with confidence scores) about records.
+*   **Visibility Manager:** Implement `visibility_scopes` (public, family, branch, private, admin_only).
+*   **Audit Logger:** Implement the `revisions` table to track every change and enable the `can_undo` workflow.
+
+### Phase 1B: Discovery & Safety
+*   **Duplicate Detection:** Implement a fuzzy-matching engine (`potential_duplicates` table) to flag similar entries during creation.
+*   **Merge Strategy:** Implement reversible merges (`merges` table), ensuring data from the secondary record is preserved in JSONB and can be undone.
+*   **UI Workflows:** Build the Duplicate Detection Panel and Merge Review Dialog.
+
+### Phase 2: Trust & Governance
+*   **Evidence System:** Build the `evidence` table linked to claims (documents, audio, transcripts) with trust scoring.
+*   **Role Hierarchy:** Implement robust RBAC (`family_roles`, `family_members_roles`) including Platform Admin, Family Owner, Branch Moderator, and Contributors.
+*   **Claim Approval Workflow:** Build the UI for moderators to review proposed claims and attached evidence.
+
+### Phase 3: Culture & Privacy
+*   **Cultural Attributes:** Implement generic `attribute_types` (gotra, caste, religion, samaj) to support diverse cultural data structures.
+*   **Sensitive Information Policy:** Implement the `sensitive_fields` table with potential field-level encryption for emails, phones, and medical data.
+*   **Privacy Controls UI:** Allow users to set their own visibility preferences.
+
+---
 
 ## Technical Debt & Refactoring
-- **Canvas/SVG Overlap:** Currently, `TreeCanvas` and `TreeSVG` duplicate some culling logic. This bounding-box math should be extracted into a shared hook (e.g., `useViewportCulling`).
-- **Worker Messaging:** The Web Worker bridge in `useTreeLayout` is untyped. Needs a strict request/response message wrapper.
-
-## AI-Assisted Genealogy Ideas
-- **Auto-Linking:** Run semantic comparisons on `bio_summary` and `search_vector` to suggest potential unknown relationships (e.g., "These two people lived in the same village in 1940").
-- **Photo Extraction:** Use AI to detect faces in bulk-uploaded media and automatically suggest tags for family members.
-
-## Mobile Improvements
-- Add "double tap to fit screen".
-- Implement native-feeling bottom sheets for the `AddRelativeModal` on smaller screens.
+- **Canvas/SVG Overlap:** `TreeCanvas` and `TreeSVG` duplicate some culling logic. This bounding-box math should be extracted into a shared hook.
+- **Worker Messaging:** The Web Worker bridge in `useTreeLayout` needs a strict request/response message wrapper.
+- **Tree Component Evolution:** The current `TreePageClient.tsx` will need to evolve into `TreeWithClaims.tsx`, allowing users to click a node and see the differing claims and confidence scores for that individual's data points.

@@ -21,13 +21,20 @@ export default function SubmissionList({ initialSubmissions }: SubmissionListPro
       })
       const result = await response.json()
 
-      if (!response.ok) throw new Error(result.error || 'Failed to approve')
+      if (!response.ok) {
+        const errorMsg = result.error?.message || result.error || 'Failed to approve'
+        setMessage({ 
+          type: 'error', 
+          text: typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg 
+        })
+        return
+      }
 
-      setMessage({ type: 'success', text: result.message })
+      setMessage({ type: 'success', text: result.message || 'Submission approved successfully' })
       setSubmissions(subs => subs.map(s => s.id === id ? { ...s, status: 'Approved' } : s))
     } catch (error: any) {
       console.error('Approval error:', error)
-      setMessage({ type: 'error', text: error.message })
+      setMessage({ type: 'error', text: 'Network error or server unavailable' })
     } finally {
       setLoadingId(null)
     }
@@ -44,12 +51,20 @@ export default function SubmissionList({ initialSubmissions }: SubmissionListPro
       })
       const result = await response.json()
       
-      if (!response.ok) throw new Error(result.error || 'Failed to reject')
+      if (!response.ok) {
+        const errorMsg = result.error?.message || result.error || 'Failed to reject'
+        setMessage({ 
+          type: 'error', 
+          text: typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg 
+        })
+        return
+      }
 
-      setMessage({ type: 'success', text: 'Submission rejected' })
+      setMessage({ type: 'success', text: result.message || 'Submission rejected successfully' })
       setSubmissions(subs => subs.map(s => s.id === id ? { ...s, status: 'Rejected' } : s))
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message })
+      console.error('Rejection error:', error)
+      setMessage({ type: 'error', text: 'Network error or server unavailable' })
     } finally {
       setLoadingId(null)
     }
@@ -89,7 +104,7 @@ export default function SubmissionList({ initialSubmissions }: SubmissionListPro
                         Target: <span className="font-semibold">{submission.raw_data?.full_name || submission.raw_data?.title || 'Unnamed'}</span>
                       </p>
                       <p className="text-xs text-gray-500">
-                        Submitted by {submission.submitter_name || 'Anonymous'} on {new Date(submission.submission_date).toLocaleDateString()}
+                        Submitted by {submission.submitter_name || 'Anonymous'} on {new Date(submission.submission_date).toLocaleDateString('en-GB')}
                       </p>
                     </div>
                   </div>

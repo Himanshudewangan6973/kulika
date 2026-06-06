@@ -9,6 +9,7 @@ const TreeCanvas = () => {
   const nodes = useTreeStore(state => state.nodes);
   const edges = useTreeStore(state => state.edges);
   const viewport = useTreeStore(state => state.viewport);
+  const setExpandedNode = useTreeStore(state => state.setExpandedNode);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -27,7 +28,7 @@ const TreeCanvas = () => {
 
     const render = () => {
       // Optimization: Avoid expensive redraws if viewport hasn't changed
-      const currentState = `\${viewport.x},\${viewport.y},\${viewport.zoom}`;
+      const currentState = `${viewport.x},${viewport.y},${viewport.zoom},${nodes.length},${edges.length}`;
       if (currentState === lastState) {
         animationFrameId = requestAnimationFrame(render);
         return;
@@ -60,8 +61,9 @@ const TreeCanvas = () => {
       const viewMinY = -viewport.y / viewport.zoom;
       const viewMaxY = viewMinY + rect.height / viewport.zoom;
 
-      ctx.lineWidth = 2 / viewport.zoom;
-      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = Math.max(2 / viewport.zoom, 1.5);
+      ctx.strokeStyle = viewport.zoom < 0.25 ? '#475569' : '#64748b';
+      ctx.lineCap = 'round';
       
       filteredEdges.forEach(edge => {
         if (
@@ -124,9 +126,28 @@ const TreeCanvas = () => {
     };
   }, [nodes, edges, viewport]);
 
+  const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const worldX = (event.clientX - rect.left - viewport.x) / viewport.zoom;
+    const worldY = (event.clientY - rect.top - viewport.y) / viewport.zoom;
+    const hitRadius = Math.max(18, 24 / viewport.zoom);
+
+    const hitNode = nodes.find(node => {
+      const dx = node.x - worldX;
+      const dy = node.y - worldY;
+      return Math.sqrt(dx * dx + dy * dy) <= hitRadius;
+    });
+
+    setExpandedNode(hitNode?.id || null);
+  };
+
   return (
     <canvas 
       ref={canvasRef} 
+      onClick={handleClick}
       style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }} 
     />
   );

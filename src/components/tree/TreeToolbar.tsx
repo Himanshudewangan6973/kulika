@@ -1,6 +1,4 @@
 'use client';
-
-import React, { useState } from 'react';
 import { 
   GitCommit, 
   CornerDownRight, 
@@ -17,7 +15,8 @@ import {
   Users,
   Eye, 
   EyeOff,
-  PlusCircle
+  PlusCircle,
+  List
   } from 'lucide-react';
   import { useTreeStore } from './store';
   import { EdgeStyle, TreeDirection } from './types';
@@ -30,16 +29,23 @@ import {
   const showUnlinked = useTreeStore(state => state.showUnlinked);
   const setShowUnlinked = useTreeStore(state => state.setShowUnlinked);
   const setZoomCommand = useTreeStore(state => state.setZoomCommand);
+  const setMode = useTreeStore(state => state.setMode);
+  const mode = useTreeStore(state => state.mode);
   const searchQuery = useTreeStore(state => state.searchQuery);
   const setSearchQuery = useTreeStore(state => state.setSearchQuery);
   const fetchMoreGenerations = useTreeStore(state => state.fetchMoreGenerations);
   const isCalculating = useTreeStore(state => state.isCalculating);
   const nodes = useTreeStore(state => state.nodes);
 
-  const handleExpand = () => {
+  const handleExpand = async () => {
     // Determine current max generation and fetch 3 more
     const maxGen = Math.max(...nodes.map((n: any) => n.data.generation || 0), 0);
-    fetchMoreGenerations(maxGen + 3);
+    const newCount = await fetchMoreGenerations(maxGen + 3);
+    
+    // Only fit to screen if new nodes were added
+    if (newCount > 0) {
+      setZoomCommand('FIT');
+    }
   };
   const styles: { id: EdgeStyle; icon: any; label: string }[] = [
     { id: 'straight', icon: GitCommit, label: 'Straight' },
@@ -99,6 +105,15 @@ import {
 
           {/* Visibility Toggles */}
           <div className="bg-white/90 backdrop-blur-md border border-gray-200 p-1.5 rounded-2xl shadow-2xl flex flex-col gap-1.5 ring-1 ring-black/5">
+            <button 
+              onClick={() => setMode(mode === 'EDIT' ? 'VIEW' : 'EDIT')}
+              className={`p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95 ${
+                mode === 'EDIT' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-400 hover:bg-gray-100'
+              }`}
+              title="Open Member Index"
+            >
+              <List size={20} />
+            </button>
             <button 
               onClick={() => setShowUnlinked(!showUnlinked)}
               className={`p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95 ${

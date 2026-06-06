@@ -5,7 +5,7 @@ import { LayoutNode, LayoutEdge } from '../types';
  * in the family tree using Depth-First Search (DFS).
  */
 export const detectCycle = (
-  nodes: LayoutNode[], 
+  _nodes: LayoutNode[], 
   edges: LayoutEdge[], 
   newEdge: { sourceId: string; targetId: string }
 ): boolean => {

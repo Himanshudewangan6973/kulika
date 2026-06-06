@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -22,7 +21,6 @@ export default function AddRelativeModal({ isOpen, onClose, targetMember, type }
   const { register, handleSubmit, formState: { errors }, reset } = useForm<UnifiedMember>({
     resolver: zodResolver(unifiedMemberSchema),
     defaultValues: {
-      lastName: targetMember.lastName,
       gender: 'Other',
       isDeceased: false
     }
@@ -30,10 +28,6 @@ export default function AddRelativeModal({ isOpen, onClose, targetMember, type }
 
   const onSubmit = async (data: UnifiedMember) => {
     // Map internal UI types to domain relationship types
-    let relType: RelationshipType = 'parent';
-    if (type === 'spouse') relType = 'spouse';
-    if (type === 'unknown') relType = 'unknown';
-    if (type === 'child' || type === 'sibling') relType = 'parent'; // Structural parents
 
     const success = await submitChange({
       change_type: 'new_member_with_relation',
@@ -52,11 +46,12 @@ export default function AddRelativeModal({ isOpen, onClose, targetMember, type }
   };
 
   const getTitle = () => {
+    const displayName = targetMember.preferred_display_name || targetMember.full_name
     switch(type) {
-      case 'parent': return `Add Parent for ${targetMember.firstName}`;
-      case 'spouse': return `Add Spouse for ${targetMember.firstName}`;
-      case 'child': return `Add Child for ${targetMember.firstName}`;
-      case 'sibling': return `Add Sibling for ${targetMember.firstName}`;
+      case 'parent': return `Add Parent for ${displayName}`;
+      case 'spouse': return `Add Spouse for ${displayName}`;
+      case 'child': return `Add Child for ${displayName}`;
+      case 'sibling': return `Add Sibling for ${displayName}`;
       default: return 'Add New Relative';
     }
   };
@@ -79,23 +74,13 @@ export default function AddRelativeModal({ isOpen, onClose, targetMember, type }
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-500 uppercase ml-1">First Name *</label>
-                <input 
-                  {...register('firstName')}
-                  className={`w-full px-4 py-2.5 bg-gray-50 border rounded-xl outline-none transition-all ${errors.firstName ? 'border-red-300 ring-1 ring-red-100' : 'border-gray-200 focus:ring-2 focus:ring-blue-500'}`}
-                />
-                {errors.firstName && <p className="text-[10px] text-red-500 font-medium ml-1">{errors.firstName.message}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-500 uppercase ml-1">Last Name *</label>
-                <input 
-                  {...register('lastName')}
-                  className={`w-full px-4 py-2.5 bg-gray-50 border rounded-xl outline-none transition-all ${errors.lastName ? 'border-red-300 ring-1 ring-red-100' : 'border-gray-200 focus:ring-2 focus:ring-blue-500'}`}
-                />
-                {errors.lastName && <p className="text-[10px] text-red-500 font-medium ml-1">{errors.lastName.message}</p>}
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-500 uppercase ml-1">Full Name *</label>
+              <input 
+                {...register('full_name')}
+                className={`w-full px-4 py-2.5 bg-gray-50 border rounded-xl outline-none transition-all ${errors.full_name ? 'border-red-300 ring-1 ring-red-100' : 'border-gray-200 focus:ring-2 focus:ring-blue-500'}`}
+              />
+              {errors.full_name && <p className="text-[10px] text-red-500 font-medium ml-1">{errors.full_name.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

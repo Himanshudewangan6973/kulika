@@ -1,103 +1,198 @@
-import * as d3 from 'd3';
+import dagre from 'dagre';
 import { LayoutNode, LayoutEdge, TreeDirection } from '../types';
 
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 100;
-const SPACING_X = 120;
-const SPACING_Y = 180;
+const UNION_SIZE = 12;
+const SPACING_X = 100;
+const SPACING_Y = 140;
 
 self.onmessage = (event: MessageEvent) => {
-  const { nodes, edges, direction } = event.data as {
+  const { nodes, edges, direction, focusNodeId } = event.data as {
+    requestId?: number;
     nodes: LayoutNode[];
     edges: LayoutEdge[];
     direction: TreeDirection;
+    focusNodeId?: string | null;
   };
+  const requestId = event.data.requestId;
 
   if (!nodes || nodes.length === 0) {
-    self.postMessage({ nodes: [], edges: [] });
+    self.postMessage({ requestId, nodes: [], edges: [] });
     return;
   }
 
   try {
-    const virtualRootId = 'VIRTUAL_ROOT';
-    const orphanRootId = 'ORPHAN_ROOT'; // Case 1: Separate section for unlinked members
-    
-    // Preparation for Multi-Root and Orphan sections
-    const hierarchyData = [
-      { id: virtualRootId, parentId: null, birthYear: 0 },
-      { id: orphanRootId, parentId: virtualRootId, birthYear: 0 },
-      ...nodes.map(node => {
-        const hasParent = node.data.parent1Id !== undefined || node.data.parent2Id !== undefined;
+    // 0. PRE-FILTERING: Remove existing virtual/union nodes from input to prevent duplicates
+    const realMembers = nodes.filter(n => !(n.data as any)?.isUnion);
+
+    // 1. DYNAMIC ROOT FOCUSING (Proband Filtering)
+    let activeNodes = realMembers;
+    if (focusNodeId) {
+      activeNodes = performDynamicFocusing(realMembers, edges, focusNodeId, 2).nodes;
+    }
+
+    // 2. DAGRE GRAPH INITIALIZATION
+    const g = new dagre.graphlib.Graph();
+    g.setGraph({ 
+      rankdir: direction, 
+      nodesep: SPACING_X, 
+      ranksep: SPACING_Y,
+      marginx: 50,
+      marginy: 50
+    });
+    g.setDefaultEdgeLabel(() => ({}));
+
+    const nodeIds = new Set(activeNodes.map(n => n.id));
+    const unionNodes: any[] = [];
+    const parentPairs = new Map<string, string>(); // sortedParentIds -> unionId
+    const finalEdges: LayoutEdge[] = [];
+
+    // 3. GRAPH CONSTRUCTION WITH UNION NODES
+    activeNodes.forEach(node => {
+      g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+      
+      const p1 = node.data.parent1Id && nodeIds.has(node.data.parent1Id) ? node.data.parent1Id : null;
+      const p2 = node.data.parent2Id && nodeIds.has(node.data.parent2Id) ? node.data.parent2Id : null;
+
+      if (p1 && p2) {
+        const pairKey = [p1, p2].sort().join('_');
+        let unionId = parentPairs.get(pairKey);
         
-        return {
-          id: node.id,
-          // If no parents, put in orphan section if unlinked, else virtual root
-          parentId: node.data.parent1Id || (hasParent ? virtualRootId : orphanRootId),
-          birthYear: node.data.birthDate ? new Date(node.data.birthDate).getFullYear() : 9999
-        };
-      })
-    ];
-
-    hierarchyData.sort((a, b) => a.birthYear - b.birthYear);
-
-    const stratifier = d3.stratify<any>()
-      .id(d => d.id)
-      .parentId(d => d.parentId);
-
-    const root = stratifier(hierarchyData);
-
-    const isHorizontal = direction === 'LR' || direction === 'RL';
-    
-    const treeLayout = d3.tree()
-      .nodeSize(
-        isHorizontal 
-          ? [NODE_HEIGHT + SPACING_Y, NODE_WIDTH + SPACING_X]
-          : [NODE_WIDTH + SPACING_X, NODE_HEIGHT + SPACING_Y]
-      );
-
-    treeLayout(root);
-
-    // Coordinate Transformation Logic
-    const updatedNodes = nodes.map(node => {
-      const d3Node = root.descendants().find(d => d.id === node.id);
-      if (!d3Node) return node;
-
-      let x = d3Node.x ?? 0;
-      let y = d3Node.y ?? 0;
-      y -= SPACING_Y;
-
-      // Case 2: Multi-spouse clustering
-      // If member has multiple spouses, we adjust their horizontal offset slightly
-      if (node.data.spouseIds && node.data.spouseIds.length > 1) {
-        // Advanced spouse positioning logic would go here
+        if (!unionId) {
+          unionId = `union_${pairKey}`;
+          parentPairs.set(pairKey, unionId);
+          unionNodes.push({ id: unionId, isUnion: true });
+          g.setNode(unionId, { width: UNION_SIZE, height: UNION_SIZE });
+          
+          // Edges from parents to union
+          g.setEdge(p1, unionId);
+          g.setEdge(p2, unionId);
+          
+          finalEdges.push(createVirtualEdge(p1, unionId, 'parent'));
+          finalEdges.push(createVirtualEdge(p2, unionId, 'parent'));
+        }
+        
+        // Edge from union to child
+        g.setEdge(unionId, node.id);
+        finalEdges.push(createVirtualEdge(unionId, node.id, 'parent'));
+      } else if (p1 || p2) {
+        const parentId = (p1 || p2)!;
+        g.setEdge(parentId, node.id);
+        finalEdges.push(createVirtualEdge(parentId, node.id, 'parent'));
       }
-
-      switch (direction) {
-        case 'BT': y = -y; break;
-        case 'LR': [x, y] = [y, x]; break;
-        case 'RL': [x, y] = [-y, x]; break;
-        case 'TB': default: break;
-      }
-
-      return { ...node, x, y };
-    });
-
-    // Case 8: Large families (Children collapse detection)
-    // We send a hint back to UI if a node should have a "Show More" children button
-    const nodeChildrenCount = new Map<string, number>();
-    edges.forEach(e => {
-      if (e.type === 'parent') {
-        nodeChildrenCount.set(e.sourceId, (nodeChildrenCount.get(e.sourceId) || 0) + 1);
+      
+      // Handle Spouses (Horizontal links in dagre can be tricky, we link them directly)
+      if (node.data.spouseIds) {
+        node.data.spouseIds.forEach(sId => {
+          if (nodeIds.has(sId)) {
+            // Only add spouse edge once
+            if (node.id < sId) {
+              finalEdges.push(createVirtualEdge(node.id, sId, 'spouse'));
+            }
+          }
+        });
       }
     });
 
-    const finalNodes = updatedNodes.map(n => ({
-      ...n,
-      hasLargeFamily: (nodeChildrenCount.get(n.id) || 0) >= 10
-    }));
+    // 4. PERFORM LAYOUT
+    dagre.layout(g);
 
-    self.postMessage({ nodes: finalNodes, edges: edges });
+    // 5. MAP COORDINATES BACK
+    const positionedNodes = activeNodes.map(node => {
+      const pos = g.node(node.id);
+      return { ...node, x: pos.x, y: pos.y, visible: true };
+    });
+
+    const positionedUnions = unionNodes.map(u => {
+      const pos = g.node(u.id);
+      return {
+        id: u.id,
+        x: pos.x,
+        y: pos.y,
+        width: UNION_SIZE,
+        height: UNION_SIZE,
+        data: { id: u.id, full_name: '', isUnion: true } as any,
+        collapsed: false,
+        visible: true
+      };
+    });
+
+    // 6. MAP EDGE POINTS
+    const positionedEdges = finalEdges.map(edge => {
+      const dagreEdge = g.edge(edge.sourceId, edge.targetId);
+      const sourcePos = g.node(edge.sourceId);
+      const targetPos = g.node(edge.targetId);
+
+      return {
+        ...edge,
+        source: { x: sourcePos.x, y: sourcePos.y },
+        target: { x: targetPos.x, y: targetPos.y },
+        bendPoints: dagreEdge?.points?.map((p: any, i: number) => ({ id: `p-${i}`, x: p.x, y: p.y })) || []
+      };
+    });
+
+    self.postMessage({ 
+      requestId, 
+      nodes: [...positionedNodes, ...positionedUnions], 
+      edges: positionedEdges 
+    });
+
   } catch (error: any) {
-    self.postMessage({ error: 'Layout calculation failed', details: error.message });
+    self.postMessage({ requestId, error: 'Dagre Layout failed', details: error.message });
   }
 };
+
+function createVirtualEdge(sourceId: string, targetId: string, type: any): LayoutEdge {
+  return {
+    id: `e-${sourceId}-${targetId}`,
+    sourceId,
+    targetId,
+    source: { x: 0, y: 0 },
+    target: { x: 0, y: 0 },
+    type,
+    bendPoints: []
+  };
+}
+
+function performDynamicFocusing(nodes: LayoutNode[], _edges: LayoutEdge[], rootId: string, depth: number) {
+  const adj = new Map<string, Set<string>>();
+  
+  // Build adjacency from structural parent fields rather than existing visual edges
+  nodes.forEach(n => {
+    const neighbors = new Set<string>();
+    if (n.data.parent1Id) neighbors.add(n.data.parent1Id);
+    if (n.data.parent2Id) neighbors.add(n.data.parent2Id);
+    if (n.data.spouseIds) n.data.spouseIds.forEach(s => neighbors.add(s));
+    
+    neighbors.forEach(nb => {
+      if (!adj.has(n.id)) adj.set(n.id, new Set());
+      if (!adj.has(nb)) adj.set(nb, new Set());
+      adj.get(n.id)!.add(nb);
+      adj.get(nb)!.add(n.id);
+    });
+  });
+
+  const visited = new Set<string>();
+  const queue: [string, number][] = [[rootId, 0]];
+  visited.add(rootId);
+
+  while (queue.length > 0) {
+    const [id, d] = queue.shift()!;
+    if (d < depth) {
+      const neighbors = adj.get(id);
+      if (neighbors) {
+        neighbors.forEach(nb => {
+          if (!visited.has(nb)) {
+            visited.add(nb);
+            queue.push([nb, d + 1]);
+          }
+        });
+      }
+    }
+  }
+
+  return { 
+    nodes: nodes.filter(n => visited.has(n.id)) 
+  };
+}

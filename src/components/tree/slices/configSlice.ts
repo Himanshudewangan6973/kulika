@@ -1,6 +1,4 @@
-import { StateCreator } from 'zustand';
 import { EdgeStyle, TreeDirection } from '../types';
-import { TreeStoreState } from '../store';
 
 export interface ConfigSlice {
   edgeStyle: EdgeStyle;

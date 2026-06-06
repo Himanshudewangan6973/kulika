@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
 
 export default function MediaUpload() {
   const [isUploading, setIsUploading] = useState(false)
@@ -33,36 +31,30 @@ export default function MediaUpload() {
     if (files.length === 0) return
     
     setIsUploading(true)
-    const supabase = createClient()
     
     try {
-      if (!supabase) throw new Error("Supabase not configured")
-
       for (const file of files) {
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${Math.random()}.${fileExt}`
-        const filePath = `${fileName}`
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('file_type', file.type.startsWith('image') ? 'Photo' : 'Video')
 
-        // In a real app, we'd upload to Supabase Storage or R2 here
-        // For now, we simulate the DB record creation
-        const { error } = await supabase.from('media').insert({
-          filename: file.name,
-          file_type: file.type.startsWith('image') ? 'Photo' : 'Video',
-          r2_key: filePath,
-          r2_url: URL.createObjectURL(file), // Placeholder
-          uploaded_by: 'System User',
-          upload_date: new Date().toISOString()
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
         })
 
-        if (error) throw error
+        const result = await response.json()
+        if (!response.ok) {
+          throw new Error(result.error?.message || result.error || 'Upload failed')
+        }
       }
 
       setFiles([])
       setPreviews([])
-      alert('Files uploaded successfully!')
+      alert('Files uploaded and saved to vault successfully!')
     } catch (err: any) {
       console.error('Upload error:', err)
-      alert(err.message)
+      alert(`Upload Failed: ${err.message}`)
     } finally {
       setIsUploading(false)
     }
@@ -122,13 +114,15 @@ export default function MediaUpload() {
           </div>
           <div className="grid grid-cols-3 gap-2">
             {previews.map((url, i) => (
-              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
-                <Image 
+              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group bg-slate-50 flex items-center justify-center">
+                <img 
                   src={url} 
                   alt="Preview" 
-                  fill 
-                  unoptimized 
-                  className="object-cover" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error('Preview load failed:', url);
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNjY2MiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIzIiB5PSIzIiB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHJ4PSIyIiByeT0iMiIvPjxjaXJjbGUgY3g9IjguNSIgY3k9IjguNSIgcj0iMS41Ii8+PHBhdGggZD0iTTIxIDE1bC01LTUtNCA0LTQtNC04IDgiLz48L3N2Zz4=';
+                  }}
                 />
                 <button
                   onClick={() => removeFile(i)}

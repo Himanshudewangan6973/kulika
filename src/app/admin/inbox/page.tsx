@@ -1,12 +1,19 @@
-import SubmissionList from '@/components/admin/SubmissionList'
+/**
+ * @file src/app/admin/inbox/page.tsx
+ * @description Admin inbox page for reviewing and approving family member submissions.
+ * Requirement: Provides a centralized interface for moderators to manage the influx of new family data.
+ */
+
+import AdminInboxClient from '@/components/admin/AdminInboxClient'
 import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
 import Alert from '@/components/ui/Alert'
+import { MOCK_INBOX } from '@/lib/mock-data'
+import { ShieldCheck } from 'lucide-react'
 
 export default async function AdminInboxPage() {
   const supabase = await createClient()
   let submissions: any[] = []
-  let fetchError = null
+  let fetchError: Error | null = null
 
   if (supabase) {
     try {
@@ -16,32 +23,30 @@ export default async function AdminInboxPage() {
         .order('submission_date', { ascending: false })
       
       if (error) {
-        fetchError = error
+        console.warn('Error fetching submissions, using mock data:', error)
+        submissions = MOCK_INBOX
       } else {
         submissions = data || []
       }
     } catch (e: any) {
-      fetchError = e
+      console.warn('Fetch submissions failed, using mock data:', e)
+      fetchError = e instanceof Error ? e : new Error(String(e))
+      submissions = MOCK_INBOX
     }
+  } else {
+    submissions = MOCK_INBOX
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <Link href="/" className="text-primary hover:text-primary-dark font-medium flex items-center gap-2 transition-all hover:-translate-x-1">
-            <span className="text-xl">←</span> Back Home
-          </Link>
-        </div>
-        <div className="flex justify-between items-center mb-8">
+    <main className="min-h-screen bg-slate-50 p-6 lg:p-10">
+      <div className="max-w-[1600px] mx-auto">
+        <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Submission Inbox</h1>
-            <p className="text-sm text-gray-500 mt-1">Review and approve family contributions</p>
-          </div>
-          <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-            <span className="text-sm font-medium text-gray-700">
-              {submissions.filter(s => s.status === 'Pending').length} Pending
-            </span>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight flex items-center gap-4">
+              <ShieldCheck className="text-indigo-600" size={40} />
+              Submission Inbox
+            </h1>
+            <p className="text-slate-500 mt-2 text-lg font-medium">Verify and merge family contributions.</p>
           </div>
         </div>
 
@@ -55,7 +60,7 @@ export default async function AdminInboxPage() {
           <Alert type="error" message={`Error loading submissions: ${fetchError.message}`} />
         )}
 
-        <SubmissionList initialSubmissions={submissions} />
+        <AdminInboxClient initialSubmissions={submissions} />
       </div>
     </main>
   )

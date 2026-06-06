@@ -1,7 +1,7 @@
 'use client';
 
 import React, { memo, useCallback, useMemo } from 'react';
-import { LayoutEdge, EdgeStyle, RelationshipType } from './types';
+import { LayoutEdge, RelationshipType } from './types';
 import { 
   getStraightPath, 
   getBezierPath, 
@@ -16,7 +16,7 @@ interface FamilyEdgeProps {
 
 const RELATIONSHIP_STYLES: Record<RelationshipType, { stroke: string; dash?: string }> = {
   parent: { stroke: '#1e293b' },
-  spouse: { stroke: '#ec4899' }, // Pink for spouse
+  spouse: { stroke: '#ec4899' },
   sibling: { stroke: '#3b82f6', dash: '10,5' },
   'step-parent': { stroke: '#f97316', dash: '5,5' },
   'adoptive-parent': { stroke: '#22c55e', dash: '5,5' },
@@ -37,13 +37,15 @@ const FamilyEdge = ({ edge }: FamilyEdgeProps) => {
   const relStyle = RELATIONSHIP_STYLES[edge.type] || RELATIONSHIP_STYLES.parent;
 
   const path = useMemo(() => {
-    switch (activeStyle) {
-      case 'straight': return getStraightPath(edge.source, edge.target);
-      case 'bezier': return getBezierPath(edge.source, edge.target);
-      case 'orthogonal': return getOrthogonalPath(edge.source, edge.target);
-      case 'custom': return getCustomPath(edge.source, edge.target, edge.bendPoints);
-      default: return getStraightPath(edge.source, edge.target);
-    }
+    // If user explicitly selected Straight or Bezier, use that even if Dagre points exist
+    if (activeStyle === 'straight') return getStraightPath(edge.source, edge.target);
+    if (activeStyle === 'bezier') return getBezierPath(edge.source, edge.target);
+
+    // Otherwise, if Dagre/Custom points exist, follow them
+    if (edge.bendPoints.length > 0) return getCustomPath(edge.source, edge.target, edge.bendPoints);
+
+    // Fallback to orthogonal for the 'Elbow' look
+    return getOrthogonalPath(edge.source, edge.target);
   }, [activeStyle, edge.source, edge.target, edge.bendPoints]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
@@ -69,6 +71,7 @@ const FamilyEdge = ({ edge }: FamilyEdgeProps) => {
         fill="none"
         stroke="transparent"
         strokeWidth={16}
+        vectorEffect="non-scaling-stroke"
         className="cursor-pointer"
         onDoubleClick={handleDoubleClick}
       />
@@ -78,8 +81,11 @@ const FamilyEdge = ({ edge }: FamilyEdgeProps) => {
         d={path}
         fill="none"
         stroke={relStyle.stroke}
-        strokeWidth={edge.isPending ? 1.5 : 2}
+        strokeWidth={edge.isPending ? 2 : 2.5}
         strokeDasharray={relStyle.dash}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
         className={`transition-all duration-300 group-hover:stroke-blue-500 group-hover:stroke-[3px] ${edge.isPending ? 'animate-pulse' : ''}`}
       />
 

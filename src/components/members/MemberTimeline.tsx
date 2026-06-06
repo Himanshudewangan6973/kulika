@@ -9,12 +9,14 @@ interface MemberTimelineProps {
 }
 
 export default function MemberTimeline({ member, events, marriages }: MemberTimelineProps) {
+  const displayName = member.preferred_display_name || member.full_name
+  
   // Combine and sort all events for this member
   const timelineItems = [
     // 1. Birth
     ...(member.date_of_birth ? [{
       date: new Date(member.date_of_birth),
-      title: `${member.full_name} Born`,
+      title: `${displayName} Born`,
       type: 'Birth',
       location: member.birth_place || 'Unknown',
       description: 'The start of this journey.'
@@ -23,7 +25,7 @@ export default function MemberTimeline({ member, events, marriages }: MemberTime
     // 2. Marriages
     ...marriages.map(m => ({
       date: m.marriage_date ? new Date(m.marriage_date) : null,
-      title: `Married to ${m.spouse1?.full_name === member.full_name ? m.spouse2?.full_name : m.spouse1?.full_name}`,
+      title: `Married to ${m.spouse1?.full_name === member.full_name ? (m.spouse2?.preferred_display_name || m.spouse2?.full_name) : (m.spouse1?.preferred_display_name || m.spouse1?.full_name)}`,
       type: 'Marriage',
       location: m.marriage_location || 'Unknown',
       description: m.notes || 'A new union formed.'
@@ -41,7 +43,7 @@ export default function MemberTimeline({ member, events, marriages }: MemberTime
     // 4. Death
     ...(member.date_of_death ? [{
       date: new Date(member.date_of_death),
-      title: `${member.full_name} Passed Away`,
+      title: `${displayName} Passed Away`,
       type: 'Legacy',
       location: member.current_location || 'Unknown',
       description: 'Leaving behind a lasting heritage.'

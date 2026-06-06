@@ -1,13 +1,11 @@
 "use client"
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 // Central cache to prevent duplicate loads
 const imageCache = new Map<string, HTMLImageElement>();
 
 export const useImageCache = (urls: (string | null | undefined)[]) => {
-  const loadedCount = useRef(0);
-
   useEffect(() => {
     const validUrls = urls.filter(Boolean) as string[];
     

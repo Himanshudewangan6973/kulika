@@ -1,5 +1,3 @@
-import React from 'react'
-
 interface ErrorStateProps {
   title?: string
   message: string

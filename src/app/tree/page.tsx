@@ -1,38 +1,70 @@
 import TreePageClient from '@/components/tree/TreePageClient'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { MOCK_FAMILY_MEMBERS, MOCK_INBOX } from '@/lib/mock-data'
 
-export default async function TreePage() {
+function getTreeLoadMessage(err: unknown) {
+  if (err instanceof Error) {
+    if (err.message.includes('fetch failed')) {
+      return 'Unable to reach Supabase right now. Showing preview data until the connection is restored.'
+    }
+    return err.message
+  }
+
+  return 'Unable to load live tree data. Showing preview data.'
+}
+
+export default async function TreePage({ searchParams }: { searchParams: Promise<{ communityId?: string, familyId?: string }> }) {
+  const params = await searchParams
+  const activeCommunityId = params.communityId || params.familyId
+  
   const supabase = await createClient()
   let members: any[] = []
   let error: string | null = null
 
   if (supabase) {
     try {
+      let memberQuery = supabase.from('family_members').select('*')
+      let inboxQuery = supabase.from('inbox').select('*').eq('status', 'Pending')
+
+      if (activeCommunityId) {
+        memberQuery = memberQuery.eq('community_id', activeCommunityId)
+        // For inbox, the community ID might be inside raw_data or a separate column if we add it
+        // For now, let's assume we filter by it if possible, otherwise we show all pending for simplicity
+        // or filter by checking if raw_data contains the community_id
+        // Since it's JSONB, we can do:
+        inboxQuery = inboxQuery.contains('raw_data', { community_id: activeCommunityId })
+      }
+
       const [
         { data: approvedMembers, error: approvedError },
-        { data: allPending, error: pendingError }
+        { data: allPending }
       ] = await Promise.all([
-        // Only load first 3 generations initially for performance
-        // Users can "Expand Lineage" to see more
-        supabase.from('family_members').select('*').lte('generation', 3).order('generation', { ascending: true }),
-        supabase.from('inbox').select('*').eq('status', 'Pending').order('submission_date', { ascending: false })
+        memberQuery.lte('generation', 3).order('generation', { ascending: true }),
+        inboxQuery.order('submission_date', { ascending: false })
       ])
       
       if (approvedError) {
-        console.error('❌ Error fetching approved members:', approvedError)
-        error = 'Failed to load family members'
-      }
-      
-      if (pendingError) {
-        console.error(
-          '❌ Error fetching pending submissions:',
-          JSON.stringify(pendingError, null, 2)
-        )
-        error = 'Failed to load pending submissions'
-      }
-
-      if (approvedMembers) {
+        console.warn('Supabase fetch failed, falling back to mock data.', approvedError)
+        error = getTreeLoadMessage(approvedError)
+        // Fallback to mock data on error
+        const mockApproved = MOCK_FAMILY_MEMBERS;
+        
+        let mergedMembers = [...mockApproved]
+        const mockPending = MOCK_INBOX;
+        
+        const newMembers = mockPending
+          .filter((item: any) => item.submission_type === 'New Member')
+          .map((item: any) => ({
+            ...item.raw_data,
+            id: `pending-${item.id}`,
+            inboxId: item.id,
+            status: 'Pending',
+            isTemporary: true
+          }))
+          
+        members = [...mergedMembers, ...newMembers]
+      } else if (approvedMembers) {
         let mergedMembers = [...approvedMembers]
         
         if (allPending && allPending.length > 0) {
@@ -75,33 +107,56 @@ export default async function TreePage() {
         }
       }
     } catch (err) {
-      console.error('❌ Unexpected error loading tree data:', err)
-      error = 'An unexpected error occurred'
+      console.warn('Unexpected error in TreePage, using mock data bypass.', err)
+      error = getTreeLoadMessage(err)
+      // Final fallback to mock data
+      const mockApproved = MOCK_FAMILY_MEMBERS;
+      const mockPending = MOCK_INBOX;
+      
+      const newMembers = mockPending
+        .filter((item: any) => item.submission_type === 'New Member')
+        .map((item: any) => ({
+          ...item.raw_data,
+          id: `pending-${item.id}`,
+          inboxId: item.id,
+          status: 'Pending',
+          isTemporary: true
+        }))
+        
+      members = [...mockApproved, ...newMembers]
     }
   } else {
-    console.warn('⚠️ Supabase not initialized')
+    console.warn('⚠️ Supabase not initialized (Using Mock Data)')
+    error = 'Supabase credentials are missing. Showing preview data.'
+    // Fallback to mock data if no supabase client
+    const mockApproved = MOCK_FAMILY_MEMBERS;
+    const mockPending = MOCK_INBOX;
+    
+    const newMembers = mockPending
+      .filter((item: any) => item.submission_type === 'New Member')
+      .map((item: any) => ({
+        ...item.raw_data,
+        id: `pending-${item.id}`,
+        inboxId: item.id,
+        status: 'Pending',
+        isTemporary: true
+      }))
+      
+    members = [...mockApproved, ...newMembers]
   }
 
   return (
     <main className="min-h-screen bg-surface">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-primary hover:text-primary-dark font-medium flex items-center gap-2 transition-all hover:-translate-x-1">
-            <span className="text-xl">←</span> Back Home
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Family Tree Visualization</h1>
-        </div>
-        <div className="flex gap-4">
-          <Link href="/submit" className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-dark transition-all">
-            + Add Member
-          </Link>
-        </div>
-      </header>
-
       <div className="p-6 max-w-7xl mx-auto">
         {!supabase && (
           <div className="p-4 mb-6 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm">
             <strong>Configuration Required:</strong> Supabase credentials are missing. Please set up your environment variables.
+          </div>
+        )}
+
+        {error && (
+          <div className="p-4 mb-6 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-sm">
+            <strong>Preview Data Active:</strong> {error}
           </div>
         )}
 

@@ -1,3 +1,9 @@
+/**
+ * @file src/components/tree/store.ts
+ * @description Root Zustand store for the Family Tree module.
+ * Requirement: Orchestrates multiple slices (Data, UI, Config) into a unified state management system.
+ */
+
 import create from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { createDataSlice, DataSlice } from './slices/dataSlice'
@@ -19,17 +25,3 @@ export const useTreeStore = create<TreeStoreState>(
     ...createConfigSlice(...a),
   }))
 );
-
-// High-performance memoized selectors
-export const selectNodes = (state: TreeStoreState) => state.nodes;
-export const selectEdges = (state: TreeStoreState) => state.edges;
-export const selectViewport = (state: TreeStoreState) => state.viewport;
-export const selectExpandedNode = (state: TreeStoreState) => state.expandedNode;
-export const selectHoveredNode = (state: TreeStoreState) => state.hoveredNode;
-export const selectEdgeStyle = (state: TreeStoreState) => state.edgeStyle;
-export const selectLayoutDirection = (state: TreeStoreState) => state.layoutDirection;
-export const selectIsCalculating = (state: TreeStoreState) => state.isCalculating;
-export const selectShowUnlinked = (state: TreeStoreState) => state.showUnlinked;
-export const selectSearchQuery = (state: TreeStoreState) => state.searchQuery;
-export const selectNotification = (state: TreeStoreState) => state.notification;
-export const selectZoomCommand = (state: TreeStoreState) => state.zoomCommand;

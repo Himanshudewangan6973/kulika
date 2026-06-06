@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 export default function PWARegistration() {
   useEffect(() => {
     if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
-      window.addEventListener('load', () => {
+      const register = () => {
         navigator.serviceWorker.register('/sw.js').then(
           (registration) => {
             console.log('ServiceWorker registration successful with scope: ', registration.scope)
@@ -14,7 +14,10 @@ export default function PWARegistration() {
             console.log('ServiceWorker registration failed: ', err)
           }
         )
-      })
+      }
+
+      window.addEventListener('load', register)
+      return () => window.removeEventListener('load', register)
     }
   }, [])
 

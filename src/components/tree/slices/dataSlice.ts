@@ -1,11 +1,16 @@
+/**
+ * @file src/components/tree/slices/dataSlice.ts
+ * @description Zustand slice for managing family tree data, layout, and persistence.
+ * Requirement: Provides a centralized state for nodes, edges, and tree manipulation actions.
+ */
+
 import { LayoutNode, LayoutEdge, BendPoint } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { createClient } from '@/lib/supabase/client';
-import { detectCycle } from '../engine/utils';
-import { normalizeToUnified } from '@/lib/schemas/memberSchema';
-import { resolveMemberId } from '@/lib/pending-members';
-
-const supabase = createClient();
+import { 
+  submitChangeToInbox, 
+  fetchGenerations, 
+  saveEdgeCustomization 
+} from './dataPersistence';
 
 export interface DataSlice {
   nodes: LayoutNode[];
@@ -17,11 +22,14 @@ export interface DataSlice {
   setEdges: (edges: LayoutEdge[] | ((eds: LayoutEdge[]) => LayoutEdge[])) => void;
   setIsCalculating: (is: boolean) => void;
   addNodesAndEdges: (newNodes: LayoutNode[], newEdges: LayoutEdge[]) => void;
+  moveNode: (nodeId: string, x: number, y: number) => void;
+  markPendingMemberApproved: (inboxId: string, approvedMemberId: string) => void;
+  markLocalMemberApproved: (nodeId: string) => void;
   
   // Persistence Actions
   submitChange: (change: any) => Promise<boolean>;
   fetchRelatives: (memberId: string) => Promise<void>;
-  fetchMoreGenerations: (maxGeneration: number) => Promise<void>;
+  fetchMoreGenerations: (maxGeneration: number) => Promise<number>;
   persistEdgeCustomization: (edgeId: string, relationshipId: string, lineStyle?: string) => Promise<boolean>;
   
   // Edge Manipulation
@@ -60,6 +68,63 @@ export const createDataSlice: any = (set: any, get: any) => ({
     }, false, 'data/addNodesAndEdges');
   },
 
+  moveNode: (nodeId: string, x: number, y: number) => {
+    set((state: any) => ({
+      nodes: state.nodes.map((node: LayoutNode) =>
+        node.id === nodeId ? { ...node, x, y } : node
+      ),
+      edges: state.edges.map((edge: LayoutEdge) => {
+        if (edge.sourceId === nodeId) return { ...edge, source: { x, y } };
+        if (edge.targetId === nodeId) return { ...edge, target: { x, y } };
+        return edge;
+      }),
+    }), false, 'data/moveNode');
+  },
+
+  markPendingMemberApproved: (inboxId: string, approvedMemberId: string) => {
+    const pendingId = `pending-${inboxId}`;
+    set((state: any) => {
+      const nextNodes = state.nodes.map((node: LayoutNode) =>
+        node.id === pendingId
+          ? {
+              ...node,
+              id: approvedMemberId,
+              data: { ...node.data, id: approvedMemberId, status: 'Approved', isTemporary: false },
+            }
+          : node
+      );
+
+      const pos = nextNodes.find((n: LayoutNode) => n.id === approvedMemberId);
+      const nextEdges = state.edges.map((edge: LayoutEdge) => {
+        const sId = edge.sourceId === pendingId ? approvedMemberId : edge.sourceId;
+        const tId = edge.targetId === pendingId ? approvedMemberId : edge.targetId;
+        return {
+          ...edge,
+          id: edge.id.replace(pendingId, approvedMemberId),
+          sourceId: sId,
+          targetId: tId,
+          source: sId === approvedMemberId && pos ? { x: pos.x, y: pos.y } : edge.source,
+          target: tId === approvedMemberId && pos ? { x: pos.x, y: pos.y } : edge.target,
+          isPending: false,
+        };
+      });
+      return { nodes: nextNodes, edges: nextEdges };
+    }, false, 'data/markPendingMemberApproved');
+  },
+
+  markLocalMemberApproved: (nodeId: string) => {
+    set((state: any) => ({
+      nodes: state.nodes.map((node: LayoutNode) =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, status: 'Approved', isTemporary: false, isLocalPreview: true } }
+          : node
+      ),
+      edges: state.edges.map((edge: LayoutEdge) =>
+        edge.sourceId === nodeId || edge.targetId === nodeId ? { ...edge, isPending: false } : edge
+      ),
+    }), false, 'data/markLocalMemberApproved');
+  },
+
   addEdgeBendPoint: (edgeId: string, point: { x: number, y: number }) => set((state: any) => ({
     edges: state.edges.map((edge: LayoutEdge) => 
       edge.id === edgeId 
@@ -84,228 +149,16 @@ export const createDataSlice: any = (set: any, get: any) => ({
     )
   }), false, 'data/removeEdgeBendPoint'),
 
-  submitChange: async (change: any) => {
-    // Real Supabase Integration
-    if (change.change_type === 'new_relationship') {
-      const hasCycle = detectCycle(get().nodes, get().edges, { 
-        sourceId: change.proposed_data.source_id, 
-        targetId: change.proposed_data.target_id 
-      });
-      if (hasCycle) {
-        get().showNotification('Circular relationship detected!', 'error');
-        return false;
-      }
-    }
+  // --- ASYNC ACTIONS (Delegated to dataPersistence) ---
+  
+  submitChange: (change: any) => 
+    submitChangeToInbox(change, get, get().addNodesAndEdges, get().showNotification),
 
-    try {
-      if (!supabase) throw new Error('Supabase not initialized');
+  fetchRelatives: async (_memberId: string) => { /* Placeholder */ },
 
-      // Map change_type to submission_type correctly
-      // Both 'new_member' and 'new_member_with_relation' are new member submissions
-      const isNewMember = change.change_type === 'new_member' || change.change_type === 'new_member_with_relation';
-      const submissionType = isNewMember ? 'New Member' : 'Relationship';
+  fetchMoreGenerations: (maxGeneration: number) => 
+    fetchGenerations(maxGeneration, get().nodes, get().addNodesAndEdges, get().setIsCalculating, get().showNotification),
 
-      // Get submitter info
-      const submitterName = change.proposed_data.submitterName || 
-                           change.proposed_data.submitter_name || 
-                           'System User';
-      const submitterEmail = change.proposed_data.submitterEmail || 
-                            change.proposed_data.submitter_email || 
-                            'noreply@kulika.local';
-
-      const rawData = isNewMember
-        ? { ...change.proposed_data, submitterName, submitterEmail }
-        : change.proposed_data;
-
-      const { data, error } = await supabase.from('inbox').insert({
-        submission_type: submissionType,
-        raw_data: rawData,
-        status: 'Pending',
-        submitter_name: submitterName,
-        submitter_email: submitterEmail,
-      }).select();
-
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error('No data returned from insertion');
-
-      const inboxEntry = data[0];
-      const pendingId = `pending-${inboxEntry.id}`;
-
-      if (isNewMember) {
-        try {
-          const normalized = normalizeToUnified(change.proposed_data);
-          const parent1Id = normalized.parent1Id ? resolveMemberId(normalized.parent1Id) : null;
-          const parent2Id = normalized.parent2Id ? resolveMemberId(normalized.parent2Id) : null;
-
-          const optimisticNode: LayoutNode = {
-            id: pendingId,
-            x: 0,
-            y: 0,
-            width: 200,
-            height: 100,
-            collapsed: true,
-            visible: true,
-            data: {
-              id: pendingId,
-              firstName: normalized.firstName,
-              lastName: normalized.lastName,
-              avatarUrl: normalized.profilePhotoUrl ?? null,
-              generation: 1,
-              parent1Id: parent1Id ?? null,
-              parent2Id: parent2Id ?? null,
-              spouseIds: []
-            }
-          };
-
-          const optimisticEdges: LayoutEdge[] = [];
-          if (parent1Id) {
-            optimisticEdges.push({
-              id: `e-${parent1Id}-${pendingId}`,
-              sourceId: parent1Id,
-              targetId: pendingId,
-              source: { x: 0, y: 0 },
-              target: { x: 0, y: 0 },
-              type: 'parent',
-              bendPoints: []
-            });
-          }
-          if (parent2Id) {
-            optimisticEdges.push({
-              id: `e-${parent2Id}-${pendingId}`,
-              sourceId: parent2Id,
-              targetId: pendingId,
-              source: { x: 0, y: 0 },
-              target: { x: 0, y: 0 },
-              type: 'parent',
-              bendPoints: []
-            });
-          }
-
-          get().addNodesAndEdges([optimisticNode], optimisticEdges);
-        } catch (updateError) {
-          console.warn('Could not update tree state with new pending member:', updateError);
-        }
-      }
-
-      console.log(`✅ Successfully submitted ${submissionType}:`, inboxEntry.id);
-      get().showNotification('✅ Your pending member has been added to the tree and submitted for review!', 'success');
-      return true;
-    } catch (err: any) {
-      console.error('❌ Submission failed:', err);
-      const errorMessage = err.message || 'Failed to submit. Please check your connection and try again.';
-      get().showNotification(errorMessage, 'error');
-      return false;
-    }
-  },
-
-  fetchRelatives: async (memberId: string) => {
-    // Logic moved here for Supabase integration
-  },
-
-  fetchMoreGenerations: async (maxGeneration: number) => {
-    if (!supabase) return;
-    try {
-      get().setIsCalculating(true);
-      const { data, error } = await supabase
-        .from('family_members')
-        .select('*')
-        .lte('generation', maxGeneration)
-        .order('generation', { ascending: true });
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        return;
-      }
-
-      const nodes = data.map((member: any) => {
-        const normalized = normalizeToUnified(member);
-        return {
-          id: member.id,
-          x: 0,
-          y: 0,
-          width: 200,
-          height: 100,
-          collapsed: true,
-          visible: true,
-          data: {
-            id: member.id,
-            firstName: normalized.firstName,
-            lastName: normalized.lastName,
-            avatarUrl: normalized.profilePhotoUrl,
-            generation: member.generation || 1,
-            parent1Id: normalized.parent1Id,
-            parent2Id: normalized.parent2Id,
-            spouseIds: member.spouseIds || []
-          }
-        } as LayoutNode;
-      });
-
-      const edges: LayoutEdge[] = [];
-      nodes.forEach((node) => {
-        const p1 = node.data.parent1Id ? resolveMemberId(node.data.parent1Id) : null;
-        const p2 = node.data.parent2Id ? resolveMemberId(node.data.parent2Id) : null;
-
-        if (p1) {
-          edges.push({
-            id: `e-${p1}-${node.id}`,
-            sourceId: p1,
-            targetId: node.id,
-            source: { x: 0, y: 0 },
-            target: { x: 0, y: 0 },
-            type: 'parent',
-            bendPoints: []
-          });
-        }
-        if (p2) {
-          edges.push({
-            id: `e-${p2}-${node.id}`,
-            sourceId: p2,
-            targetId: node.id,
-            source: { x: 0, y: 0 },
-            target: { x: 0, y: 0 },
-            type: 'parent',
-            bendPoints: []
-          });
-        }
-      });
-
-      get().addNodesAndEdges(nodes, edges);
-    } catch (err: any) {
-      console.error('Failed to fetch more generations:', err);
-      get().showNotification(err.message || 'Unable to expand lineage', 'error');
-    } finally {
-      get().setIsCalculating(false);
-    }
-  },
-
-  persistEdgeCustomization: async (edgeId: string, relationshipId: string, lineStyle: string = 'bezier') => {
-    try {
-      const edge = get().edges.find((e: LayoutEdge) => e.id === edgeId);
-      if (!edge) {
-        throw new Error(`Edge ${edgeId} not found`);
-      }
-
-      const response = await fetch('/api/tree/edge-customizations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          relationshipId,
-          bendPoints: edge.bendPoints,
-          lineStyle
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.details || error.error || 'Failed to save customization');
-      }
-
-      get().showNotification('Edge customization saved successfully');
-      return true;
-    } catch (err: any) {
-      console.error('Error persisting edge customization:', err);
-      get().showNotification(err.message || 'Failed to save customization', 'error');
-      return false;
-    }
-  }
+  persistEdgeCustomization: (edgeId: string, relationshipId: string, lineStyle: string = 'bezier') => 
+    saveEdgeCustomization(edgeId, relationshipId, lineStyle, get().edges, get().showNotification)
 });

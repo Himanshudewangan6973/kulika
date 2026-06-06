@@ -1,3 +1,9 @@
+/**
+ * @file src/app/analytics/page.tsx
+ * @description Family insights and analytics dashboard.
+ * Requirement: Provides visualized data on occupations, generations, and regional distributions.
+ */
+
 import { createClient } from '@/lib/supabase/server'
 import StatsCards from '@/components/analytics/StatsCards'
 import OccupationChart from '@/components/analytics/OccupationChart'
@@ -59,16 +65,16 @@ export default async function AnalyticsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Family Analytics</h1>
-            <p className="text-gray-500 mt-2">Insights into our heritage, growth, and journey across generations.</p>
+            <Link href="/" className="text-indigo-600 hover:text-indigo-700 font-bold text-sm mb-4 block">
+              ← Back Home
+            </Link>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Family Analytics</h1>
+            <p className="text-slate-500 mt-2">Insights into our heritage, growth, and journey across generations.</p>
           </div>
-          <Link href="/" className="text-primary hover:text-primary-dark font-bold text-sm">
-            ← Back Home
-          </Link>
         </div>
 
         {/* 1. Overview Stats */}

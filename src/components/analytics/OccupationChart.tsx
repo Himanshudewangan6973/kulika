@@ -40,7 +40,7 @@ export default function OccupationChart({ data }: OccupationChartProps) {
           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
         />
         <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={24}>
-          {chartData.map((entry, index) => (
+          {chartData.map((_entry, index) => (
             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
           ))}
         </Bar>

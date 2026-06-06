@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 
+import { useFamilySpaceStore } from '@/store/familySpaceStore'
+
 export default function StoryArchive() {
+  const { currentSpace } = useFamilySpaceStore()
   const [filter, setFilter] = useState('All')
   const [stories, setStories] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -15,19 +18,27 @@ export default function StoryArchive() {
       setIsLoading(true)
       setError(null)
       try {
-        const response = await fetch(`/api/stories?type=${filter}`)
+        const communityParam = currentSpace?.id ? `&communityId=${currentSpace.id}` : ''
+        const response = await fetch(`/api/stories?type=${filter}${communityParam}`)
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error(`Server returned an unexpected format (${response.status})`);
+        }
+
         const result = await response.json()
-        if (!response.ok) throw new Error(result.error || 'Failed to fetch')
+        if (!response.ok) throw new Error(result.error?.message || result.error || 'Failed to fetch')
         setStories(result.data || [])
       } catch (err: any) {
-        setError(err.message)
+        console.error('Stories fetch error:', err)
+        setError(err.message || String(err))
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchStories()
-  }, [filter])
+  }, [filter, currentSpace?.id])
 
   return (
     <div className="space-y-8">
@@ -52,7 +63,7 @@ export default function StoryArchive() {
           ))}
         </div>
       ) : error ? (
-        <ErrorState title="Error loading stories" message={error} />
+        <ErrorState title="Error loading stories" message={error || 'Something went wrong'} />
       ) : stories.length === 0 ? (
         <EmptyState 
           icon="📜" 

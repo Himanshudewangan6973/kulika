@@ -3,12 +3,11 @@
 import React from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { 
-  Plus, 
-  UserPlus, 
-  Heart, 
-  ArrowUp, 
-  Users, 
-  AlertTriangle 
+  UserPlus,
+  Heart,
+  ArrowUp,
+  Users,
+  AlertTriangle
 } from 'lucide-react';
 
 interface AddRelativeDropdownProps {

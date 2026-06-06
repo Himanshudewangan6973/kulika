@@ -61,7 +61,14 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  try {
+    await supabase.auth.getUser()
+  } catch (error) {
+    console.error('Middleware: Auth check failed', error)
+  }
 
+  // NOTE: Authentication is currently being bypassed in the client-side AuthProvider
+  // due to stability issues with the sign-in flow.
+  
   return response
 }

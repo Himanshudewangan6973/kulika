@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTreeStore } from './store';
 import FamilyNode from './FamilyNode';
 import FamilyEdge from './FamilyEdge';
@@ -28,9 +28,16 @@ const TreeSVG = () => {
     }
 
     const viewMinX = -viewport.x / viewport.zoom;
-    const viewMaxX = viewMinX + window.innerWidth / viewport.zoom;
     const viewMinY = -viewport.y / viewport.zoom;
-    const viewMaxY = viewMinY + window.innerHeight / viewport.zoom;
+    
+    const screenWidth =
+      typeof window !== "undefined" ? window.innerWidth : 1920;
+
+    const screenHeight =
+      typeof window !== "undefined" ? window.innerHeight : 1080;
+
+    const viewMaxX = viewMinX + screenWidth / viewport.zoom;
+    const viewMaxY = viewMinY + screenHeight / viewport.zoom;
 
     return filteredNodes.filter(n => {
       return (
@@ -60,6 +67,7 @@ const TreeSVG = () => {
           transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
           transformOrigin: '0 0',
           willChange: 'transform',
+          pointerEvents: 'auto' // Enable interaction for edges and bend points
         }}
       >
         {visibleEdges.map(edge => (

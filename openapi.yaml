@@ -1,0 +1,329 @@
+# openapi.yaml
+openapi: 3.0.0
+info:
+  title: Kulika Heritage Platform API
+  version: 1.0.0
+  description: Collaborative heritage knowledge platform API
+  contact:
+    name: Kulika Support
+    url: https://kulika.example.com/support
+
+servers:
+  - url: https://api.kulika.example.com
+    description: Production server
+  - url: http://localhost:3000
+    description: Development server
+
+paths:
+  /api/families:
+    get:
+      summary: List family spaces
+      operationId: listFamilies
+      tags:
+        - Families
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of family spaces
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFamilies'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      summary: Create new family space
+      operationId: createFamily
+      tags:
+        - Families
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFamilyRequest'
+      responses:
+        '201':
+          description: Family space created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilySpace'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/claims:
+    get:
+      summary: Get claims for a member
+      operationId: getClaims
+      tags:
+        - Claims
+      parameters:
+        - name: memberId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: familyId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [proposed, approved, disputed, archived]
+      responses:
+        '200':
+          description: List of claims
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Claim'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      summary: Create new claim
+      operationId: createClaim
+      tags:
+        - Claims
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClaimRequest'
+      responses:
+        '201':
+          description: Claim created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Claim'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    FamilySpace:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        privacyLevel:
+          type: string
+          enum: [public, private]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateFamilyRequest:
+      type: object
+      required:
+        - name
+        - slug
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+        description:
+          type: string
+          maxLength: 500
+        privacyLevel:
+          type: string
+          enum: [public, private]
+          default: private
+
+    PaginatedFamilies:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/FamilySpace'
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalPages:
+              type: integer
+
+    Claim:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        familyId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        claimType:
+          type: string
+        claimValue:
+          type: string
+        confidenceScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        sourceType:
+          type: string
+          enum:
+            - oral_tradition
+            - document
+            - photo
+            - certificate
+            - interview
+            - family_bible
+            - government_record
+            - other
+        status:
+          type: string
+          enum: [proposed, approved, disputed, archived]
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateClaimRequest:
+      type: object
+      required:
+        - familyId
+        - memberId
+        - claimType
+        - claimValue
+        - sourceType
+      properties:
+        familyId:
+          type: string
+          format: uuid
+        memberId:
+          type: string
+          format: uuid
+        claimType:
+          type: string
+        claimValue:
+          type: string
+        sourceType:
+          type: string
+        sourceDescription:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.5
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: UNAUTHORIZED
+                  message:
+                    type: string
+                    example: Not authenticated
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: FORBIDDEN
+                  message:
+                    type: string

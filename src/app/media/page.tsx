@@ -1,19 +1,15 @@
+/**
+ * @file src/app/media/page.tsx
+ * @description Family media archive page.
+ * Requirement: Central hub for photos, videos, and documents preserving family history.
+ */
+
 import MediaGallery from '@/components/media/MediaGallery'
 import MediaUpload from '@/components/media/MediaUpload'
-import Link from 'next/link'
 
 export default function MediaPage() {
   return (
-    <main className="min-h-screen bg-surface">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-primary hover:text-primary-dark transition-colors">
-            <span className="text-xl">←</span>
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Digital Sanctuary</h1>
-        </div>
-      </header>
-
+    <main className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Left Column: Upload */}

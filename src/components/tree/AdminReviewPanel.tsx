@@ -1,14 +1,21 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { X, Check, Edit2, AlertCircle, Trash2, Clock } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Check, X, Clock } from 'lucide-react'
 import { useTreeStore } from './store'
+import { useFamilySpaceStore } from '@/store/familySpaceStore'
 import { createClient } from '@/lib/supabase/client'
 
 const supabase = createClient()
 
 export default function AdminReviewPanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+  const { currentSpace } = useFamilySpaceStore()
   const showNotification = useTreeStore(state => state.showNotification)
+  const markPendingMemberApproved = useTreeStore(state => state.markPendingMemberApproved)
+  const markLocalMemberApproved = useTreeStore(state => state.markLocalMemberApproved)
+  const localPendingNodes = useTreeStore(state =>
+    state.nodes.filter(node => node.data.isTemporary && node.data.isLocalPreview)
+  )
   const [pendingChanges, setPendingChanges] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   
@@ -18,15 +25,22 @@ export default function AdminReviewPanel({ isOpen, onClose }: { isOpen: boolean,
       return
     }
     setLoading(true)
-    const { data, error } = await supabase
+    
+    let query = supabase
       .from('inbox')
       .select('*')
       .eq('status', 'Pending')
       .order('submission_date', { ascending: false })
+      
+    if (currentSpace?.id) {
+      query = query.eq('community_id', currentSpace.id)
+    }
+
+    const { data, error: _error } = await query
     
     if (data) setPendingChanges(data)
     setLoading(false)
-  }, [])
+  }, [currentSpace?.id])
 
   useEffect(() => {
     if (isOpen && supabase) {
@@ -36,36 +50,30 @@ export default function AdminReviewPanel({ isOpen, onClose }: { isOpen: boolean,
 
   const handleApprove = async (change: any) => {
     try {
-      if (!supabase) return
+      const response = await fetch(`/api/admin/inbox/${change.id}/approve`, {
+        method: 'POST',
+      })
 
-      // 1. If it's a new member, insert into family_members
-      if (change.submission_type === 'New Member') {
-        const { error: insertError } = await supabase
-          .from('family_members')
-          .insert(change.raw_data)
-        if (insertError) throw insertError
-      } 
-      // 2. If it's an update, update family_members
-      else if (change.submission_type === 'Update Member' && change.linked_record_id) {
-        const { error: updateError } = await supabase
-          .from('family_members')
-          .update(change.raw_data)
-          .eq('id', change.linked_record_id)
-        if (updateError) throw updateError
+      const result = await response.json()
+      if (!response.ok) {
+        const errorMsg = result.error?.message || result.error || 'Approval failed'
+        throw new Error(typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg)
       }
 
-      // 3. Mark as Approved in inbox
-      const { error: approveError } = await supabase
-        .from('inbox')
-        .update({ status: 'Approved', review_date: new Date().toISOString() })
-        .eq('id', change.id)
-      if (approveError) throw approveError
+      if (change.submission_type === 'New Member' && result.record?.id) {
+        markPendingMemberApproved(change.id, result.record.id)
+      }
 
       showNotification('Change approved and applied!', 'success')
       fetchPendingChanges()
     } catch (error: any) {
       showNotification(error.message, 'error')
     }
+  }
+
+  const handleApproveLocal = (nodeId: string) => {
+    markLocalMemberApproved(nodeId)
+    showNotification('Preview member approved locally. Live data is unchanged.', 'success')
   }
 
   const handleReject = async (id: string) => {
@@ -86,10 +94,10 @@ export default function AdminReviewPanel({ isOpen, onClose }: { isOpen: boolean,
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl border-l z-50 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="flex justify-between items-center p-4 border-b bg-gray-50">
-        <h2 className="font-bold text-lg text-gray-800">Pending Changes ({pendingChanges.length})</h2>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200">
+    <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl border-l z-[301] flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-white">
+        <h2 className="font-black text-lg text-slate-900 tracking-tight">Pending Changes ({pendingChanges.length})</h2>
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-50 rounded-full transition-all">
           <X size={20} />
         </button>
       </div>
@@ -99,43 +107,68 @@ export default function AdminReviewPanel({ isOpen, onClose }: { isOpen: boolean,
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
           </div>
-        ) : pendingChanges.length === 0 ? (
+        ) : pendingChanges.length === 0 && localPendingNodes.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-2">
             <Check size={48} className="text-green-200" />
             <p className="font-medium">All caught up!</p>
           </div>
         ) : (
-          pendingChanges.map((change) => (
-            <div key={change.id} className="border rounded-lg shadow-sm bg-white overflow-hidden">
-              <div className={`px-3 py-2 border-b flex items-center justify-between ${change.submission_type === 'New Member' ? 'bg-blue-50' : 'bg-purple-50'}`}>
-                <span className={`text-sm font-semibold flex items-center gap-1 ${change.submission_type === 'New Member' ? 'text-blue-800' : 'text-purple-800'}`}>
-                  <Clock size={14} /> {change.submission_type}
-                </span>
-                <span className="text-[10px] text-gray-500">{new Date(change.submission_date).toLocaleDateString()}</span>
-              </div>
-              <div className="p-3">
-                <div className="mb-3">
-                  <p className="text-sm font-bold text-gray-800">{change.raw_data.full_name}</p>
-                  <p className="text-[10px] text-gray-500">Submitted by: {change.submitter_name}</p>
+          <>
+            {localPendingNodes.map((node) => (
+              <div key={node.id} className="border rounded-lg shadow-sm bg-white overflow-hidden">
+                <div className="px-3 py-2 border-b flex items-center justify-between bg-amber-50">
+                  <span className="text-sm font-semibold flex items-center gap-1 text-amber-800">
+                    <Clock size={14} /> Preview Member
+                  </span>
+                  <span className="text-[10px] text-amber-700">Local only</span>
                 </div>
-                
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleApprove(change)}
-                    className="flex-1 py-1.5 bg-green-500 text-white rounded text-xs font-medium hover:bg-green-600 transition flex items-center justify-center gap-1"
+                <div className="p-3">
+                  <div className="mb-3">
+                    <p className="text-sm font-bold text-gray-800">{node.data.full_name}</p>
+                    <p className="text-[10px] text-gray-500">Created while live database was unavailable</p>
+                  </div>
+                  <button
+                    onClick={() => handleApproveLocal(node.id)}
+                    className="w-full py-1.5 bg-amber-600 text-white rounded text-xs font-medium hover:bg-amber-700 transition flex items-center justify-center gap-1"
                   >
-                    <Check size={14} /> Approve
-                  </button>
-                  <button 
-                    onClick={() => handleReject(change.id)}
-                    className="flex-1 py-1.5 bg-white border border-red-300 text-red-600 rounded text-xs font-medium hover:bg-red-50 transition flex items-center justify-center gap-1"
-                  >
-                    <X size={14} /> Reject
+                    <Check size={14} /> Approve Locally
                   </button>
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+
+            {pendingChanges.map((change) => (
+              <div key={change.id} className="border rounded-lg shadow-sm bg-white overflow-hidden">
+                <div className={`px-3 py-2 border-b flex items-center justify-between ${change.submission_type === 'New Member' ? 'bg-blue-50' : 'bg-purple-50'}`}>
+                  <span className={`text-sm font-semibold flex items-center gap-1 ${change.submission_type === 'New Member' ? 'text-blue-800' : 'text-purple-800'}`}>
+                    <Clock size={14} /> {change.submission_type}
+                  </span>
+                  <span className="text-[10px] text-gray-500">{new Date(change.submission_date).toLocaleDateString()}</span>
+                </div>
+                <div className="p-3">
+                  <div className="mb-3">
+                    <p className="text-sm font-bold text-gray-800">{change.raw_data.full_name}</p>
+                    <p className="text-[10px] text-gray-500">Submitted by: {change.submitter_name}</p>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleApprove(change)}
+                      className="flex-1 py-1.5 bg-green-500 text-white rounded text-xs font-medium hover:bg-green-600 transition flex items-center justify-center gap-1"
+                    >
+                      <Check size={14} /> Approve
+                    </button>
+                    <button 
+                      onClick={() => handleReject(change.id)}
+                      className="flex-1 py-1.5 bg-white border border-red-300 text-red-600 rounded text-xs font-medium hover:bg-red-50 transition flex items-center justify-center gap-1"
+                    >
+                      <X size={14} /> Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
         )}
       </div>
       

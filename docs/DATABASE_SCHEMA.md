@@ -1,40 +1,69 @@
-# Database Schema
+# Database Schema: Collaborative Heritage Knowledge Platform
 
 ## Overview
-The database is built on PostgreSQL via Supabase. It uses Row Level Security (RLS) to ensure that only authenticated users can submit data, and only admins can approve or permanently delete records.
+The database is built on PostgreSQL via Supabase. The architecture is shifting from a flat "truth-based" model to a "claims-based" model with isolated family spaces and full audit traceability.
 
-## Core Tables
+---
 
-### 1. `family_members`
+## 1. Governance & Space Isolation
+
+### `families` (Multi-Space Support)
+- **Purpose:** Segregates data into isolated family heritage environments.
+- **Fields:** `id`, `name`, `slug` (unique), `privacy_level` (public/private), `founding_ancestor_id`.
+- **Note:** Every record in other tables must now include a `family_id` foreign key.
+
+### `family_roles` & `family_members_roles`
+- **Purpose:** RBAC system for granular control.
+- **Roles:** `platform_admin`, `family_owner`, `family_admin`, `branch_moderator`, `verified_contributor`, `public_contributor`, `visitor`.
+
+---
+
+## 2. Core Heritage Data
+
+### `family_members`
 - **Purpose:** Primary nodes of the tree.
-- **Key Fields:** `full_name`, `gender`, `date_of_birth`, `lineage`, `status`, `parent1_id`, `parent2_id`, `generation`.
-- **Indexing:** B-Tree on `parent1_id`, `parent2_id`, `generation`. GIN on `search_vector`.
+- **Visibility:** Includes a `visibility_scope` field (public, family, branch, private, admin_only).
+- **Indexing:** B-Tree on `parent1_id`, `parent2_id`, `generation`.
 
-### 2. `relationships` (Advanced)
-- **Purpose:** Handles non-standard linkages.
-- **Fields:** `source_id`, `target_id`, `type` (enum: adoptive, step, guardian, etc.), `is_pending`.
-- **Constraints:** `source_id != target_id`, unique active relationship per pair/type.
+### `claims` (The Knowledge Store)
+- **Purpose:** Stores verifiable data points instead of direct record edits.
+- **Fields:** `subject_id`, `claim_type` (birth_date, gotra, etc.), `claim_value`, `confidence_score` (0.0-1.0), `source_type`, `status` (proposed, approved, disputed, archived).
+- **Versioning:** Includes `is_current` and `superseded_by` for reversibility.
 
-### 3. `edge_customizations`
-- **Purpose:** Stores visualization state so tree modifications persist.
-- **Fields:** `relationship_id`, `bend_points` (JSONB), `line_style` (straight, bezier, orthogonal, custom).
+### `evidence`
+- **Purpose:** Ties documents and media to specific claims to build trust.
+- **Fields:** `claim_id`, `evidence_type` (document, certificate, photo), `file_url`, `trust_score`.
 
-### 4. `inbox`
-- **Purpose:** The submission queue for all community-added data.
-- **Fields:** `submission_type`, `status` (Pending, Approved, Rejected), `raw_data` (JSONB).
+---
 
-## Relationships & Junctions
-- **`marriages`:** Links two `family_members` with start/end dates.
-- **`media_members` / `story_members`:** Links members to rich content (photos, stories).
+## 3. Operations & Maintenance
 
-## Triggers & Functions
-- **`set_generation()`:** Automatically calculates a member's `generation` integer upon insert based on their parents' highest generation + 1.
-- **`get_descendants()` / `get_ancestors()`:** Recursive CTEs for retrieving lineage sub-trees.
+### `revisions` (Audit Trail)
+- **Purpose:** Logs every change across all entities for full transparency and one-click reversibility.
+- **Fields:** `entity_type`, `entity_id`, `field_name`, `old_value`, `new_value`, `can_undo`, `undone_at`.
+
+### `potential_duplicates` & `merges`
+- **Purpose:** Manages data quality without destructive deletions.
+- **Merges:** Stores merged data in JSONB (`merged_data`) to allow for reversible merges if a mistake is made.
+
+---
+
+## 4. Specialized Data Structures
+
+### `attribute_types` & `member_attributes`
+- **Purpose:** Stores cultural-specific tags like Gotra, Caste, or Religion in a generic, extensible way.
+
+### `sensitive_fields`
+- **Purpose:** Stores sensitive data (contact info, medical) with field-level encryption and restricted access lists.
+
+---
 
 ## Migration History
-- **v1.0:** Basic `family_members` with `parent1_id`/`parent2_id` columns.
-- **v2.0 (20240506000000):** Introduced `relationships` and `edge_customizations` to support complex family structures and persistent path drawing.
+- **v1.0:** Basic `family_members` with parents.
+- **v2.0:** Added `relationships` and `edge_customizations`.
+- **v3.0 (Planned):** Full Collaborative Architecture (Families, Claims, Evidence, Revisions).
 
-## Future Scalability Considerations
-- If `family_members` exceeds 100,000 rows, the recursive CTEs (`get_descendants`) may become slow. Caching tree paths (Materialized Paths or Ltree) might be necessary.
-- The `edge_customizations.bend_points` JSONB column could grow large; consider pruning orphaned points.
+## Future Scalability
+- **Ltree Migration:** For O(1) ancestor/descendant lookups if trees exceed 100k nodes.
+- **Encryption:** Moving `sensitive_fields` to a dedicated vault with KMS integration.
+

@@ -1,0 +1,68 @@
+# docker-compose.yml
+version: '3.9'
+
+services:
+  app:
+    build: .
+    container_name: kulika-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - kulika-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: kulika-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - kulika-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: kulika-redis
+    volumes:
+      - redis-data:/data
+    networks:
+      - kulika-network
+    restart: unless-stopped
+
+  postgres-backup:
+    image: pg-backup-api:latest
+    environment:
+      - PGHOST=postgres
+      - PGUSER=${POSTGRES_USER}
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+      - PGDATABASE=${POSTGRES_DB}
+    volumes:
+      - ./backups:/backups
+    networks:
+      - kulika-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  kulika-network:
+    driver: bridge

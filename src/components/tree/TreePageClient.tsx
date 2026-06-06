@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import TreeViewport from './TreeViewport';
 import { useTreeStore } from './store';
 import { LayoutNode, LayoutEdge } from './types';
 import { normalizeToUnified } from '@/lib/schemas/memberSchema';
 import { resolveMemberId } from '@/lib/pending-members';
-import { v4 as uuidv4 } from 'uuid';
 
 interface TreePageClientProps {
   initialMembers: any[];
@@ -21,7 +20,13 @@ export default function TreePageClient({ initialMembers }: TreePageClientProps) 
     if (initialMembers && initialMembers.length > 0) {
       const nodes: LayoutNode[] = initialMembers.map(member => {
         // Normalize all member data to unified schema
-        const normalized = normalizeToUnified(member);
+        let normalized;
+        try {
+          normalized = normalizeToUnified(member);
+        } catch (e) {
+          console.warn('Failed to normalize member, using raw data:', member.full_name, e);
+          normalized = member;
+        }
         
         return {
           id: member.id,
@@ -32,13 +37,30 @@ export default function TreePageClient({ initialMembers }: TreePageClientProps) 
           visible: true,
           data: {
             id: member.id,
-            firstName: normalized.firstName,
-            lastName: normalized.lastName,
-            avatarUrl: normalized.profilePhotoUrl,
+            full_name: normalized.full_name || member.full_name || 'Unknown',
+            given_name: normalized.given_name || member.given_name || '',
+            middle_names: normalized.middle_names || member.middle_names || '',
+            surname: normalized.surname || member.surname || '',
+            preferred_display_name: normalized.preferred_display_name || member.preferred_display_name || '',
+            native_name: normalized.native_name || member.native_name || '',
+            community_id: normalized.community_id || member.community_id || '',
+            community_override: normalized.community_override || member.community_override || '',
+            name_notes: normalized.name_notes || member.name_notes || '',
+            bio: normalized.bio || member.bio || '',
+            birthDate: normalized.dateOfBirth || member.birth_date || member.dateOfBirth || '',
+            dateOfBirth: normalized.dateOfBirth || member.birth_date || member.dateOfBirth || '',
+            dateOfDeath: normalized.dateOfDeath || member.dateOfDeath || '',
+            avatarUrl: normalized.profilePhotoUrl || member.profile_photo_url || member.profilePhotoUrl || null,
+            profilePhotoUrl: normalized.profilePhotoUrl || member.profile_photo_url || member.profilePhotoUrl || null,
+            firstName: normalized.given_name || member.given_name || (normalized.full_name || member.full_name || '').split(' ')[0] || '',
+            lastName: normalized.surname || member.surname || (normalized.full_name || member.full_name || '').split(' ').slice(1).join(' ') || '',
+            parent1Id: normalized.parent1Id || member.parent1_id || member.parent1Id || null,
+            parent2Id: normalized.parent2Id || member.parent2_id || member.parent2Id || null,
+            spouseIds: member.spouseIds || [],
             generation: member.generation || 1,
-            parent1Id: normalized.parent1Id,
-            parent2Id: normalized.parent2Id,
-            spouseIds: member.spouseIds || []
+            status: member.status || normalized.status || 'Approved',
+            isTemporary: Boolean(member.isTemporary),
+            isLocalPreview: Boolean(member.isLocalPreview),
           }
         };
       });
@@ -57,7 +79,8 @@ export default function TreePageClient({ initialMembers }: TreePageClientProps) 
             source: { x: 0, y: 0 },
             target: { x: 0, y: 0 },
             type: 'parent',
-            bendPoints: []
+            bendPoints: [],
+            isPending: node.data.status === 'Pending' || node.data.isTemporary,
           });
         }
         if (p2) {
@@ -68,7 +91,8 @@ export default function TreePageClient({ initialMembers }: TreePageClientProps) 
             source: { x: 0, y: 0 },
             target: { x: 0, y: 0 },
             type: 'parent',
-            bendPoints: []
+            bendPoints: [],
+            isPending: node.data.status === 'Pending' || node.data.isTemporary,
           });
         }
       });
