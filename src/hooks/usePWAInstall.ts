@@ -10,14 +10,20 @@ export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     // Check if app is already installed
-    const isInstalledOnLoad =
-      typeof window !== 'undefined' && (
+    const isStandalone = 
       window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true);
-    setIsInstalled(isInstalledOnLoad);
+      (window.navigator as any).standalone === true;
+    
+    setIsInstalled(isStandalone);
+
+    // Detect iOS
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(isIOSDevice);
 
     // Listen for install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -32,32 +38,37 @@ export function usePWAInstall() {
       localStorage.setItem('pwa-installed', 'true');
     };
 
-    // Listen for updates
-    const handleControllerChange = () => {
-      setUpdateAvailable(true);
-      console.log('PWA update available');
-    };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
 
       // Check for updates
       navigator.serviceWorker.ready.then((registration) => {
+        const checkUpdate = () => {
+          if (registration.waiting) {
+            setUpdateAvailable(true);
+          }
+        };
+
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           newWorker?.addEventListener('statechange', () => {
-            if (newWorker.state === 'activated') {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               setUpdateAvailable(true);
             }
           });
         });
 
+        // Initial check
+        checkUpdate();
+
         // Check for updates every hour
         setInterval(() => {
-          registration.update();
+          registration.update().then(checkUpdate);
         }, 60 * 60 * 1000);
       });
     }
@@ -65,9 +76,6 @@ export function usePWAInstall() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
-      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-      }
     };
   }, []);
 
@@ -82,7 +90,6 @@ export function usePWAInstall() {
       if (outcome === 'accepted') {
         setIsInstalled(true);
         setDeferredPrompt(null);
-        localStorage.setItem('pwa-install-accepted', 'true');
       }
     } finally {
       setIsUpdating(false);
@@ -94,11 +101,10 @@ export function usePWAInstall() {
 
     setIsUpdating(true);
     try {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.update();
-
-      // Reload page after update
-      window.location.reload();
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration?.waiting) {
+        registration.waiting.postMessage('SKIP_WAITING');
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -110,11 +116,12 @@ export function usePWAInstall() {
 
   return {
     isInstalled,
-    canInstall: !!deferredPrompt && !isInstalled,
+    canInstall: (!!deferredPrompt || (isIOS && !isInstalled)),
     installApp,
     isUpdating,
     updateAvailable,
     updateApp,
     dismissUpdatePrompt,
+    isIOS,
   };
 }

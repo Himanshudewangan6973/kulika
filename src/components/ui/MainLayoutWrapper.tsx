@@ -15,9 +15,9 @@ export default function MainLayoutWrapper({ children }: { children: React.ReactN
   // Use transition for smooth shifting
   return (
     <div 
-      className={`flex-1 w-full pt-14 transition-[padding] duration-300 ease-in-out ${
+      className={`flex-1 w-full pt-14 transition-[padding] duration-300 ease-in-out bg-slate-50 ${
         mounted ? (railExpanded ? 'md:pl-60' : 'md:pl-20') : 'md:pl-20'
-      } pb-20 md:pb-0`}
+      } pb-16 md:pb-0`}
     >
       {children}
     </div>

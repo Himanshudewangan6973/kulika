@@ -42,7 +42,7 @@ export default function FamilySpaceSelector() {
     <div className="relative inline-block">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm group"
+        className="flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm group"
       >
         <div className="text-left">
           <div className="font-black text-[10px] text-slate-900 leading-tight">

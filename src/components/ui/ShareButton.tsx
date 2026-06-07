@@ -49,7 +49,7 @@ export function ShareButton({ title, text, url }: ShareButtonProps) {
     <div className="relative">
       <button 
         onClick={handleNativeShare} 
-        className="flex items-center gap-2 px-6 py-2 bg-indigo-50 text-indigo-600 rounded-full font-black hover:bg-indigo-100 transition-all active:scale-95 shadow-sm border border-indigo-100 text-sm"
+        className="flex items-center gap-2 px-3 md:px-6 py-2 bg-indigo-50 text-indigo-600 rounded-full font-black hover:bg-indigo-100 transition-all active:scale-95 shadow-sm border border-indigo-100 text-sm"
       >
         <Share2 size={18} />
         Share

@@ -109,8 +109,8 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* Core Feature Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 w-full mb-10">
+        {/* Core Feature Grid - Hidden on mobile as it's redundant with bottom nav */}
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 w-full mb-10">
           <FeatureCard 
             href={mounted && currentSpace?.id ? `/tree?communityId=${currentSpace.id}` : "/tree"}
             title="Family Tree"
@@ -153,8 +153,8 @@ export default function Home() {
           />
         </div>
 
-        {/* Action Bar */}
-        <div className="flex flex-wrap justify-center gap-3 py-6 border-t border-slate-200 w-full max-w-4xl">
+        {/* Action Bar - Hidden on mobile */}
+        <div className="hidden md:flex flex-wrap justify-center gap-3 py-6 border-t border-slate-200 w-full max-w-4xl">
           <Link 
             href={mounted && currentSpace?.id ? `/submit?communityId=${currentSpace.id}` : "/submit"} 
             className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 text-sm"
